@@ -151,34 +151,35 @@ class searchArxiv(searchGeneric):
     def __init__(self,id):
         self.id = id
         self.search_url = 'http://export.arxiv.org/api/query?search_query='+self.id
-        self.get_atom()
+        self.get_data()
 
-    def get_atom(self):
-        self.feed = feedparser.parse(self.search_url)
+    def get_data(self):
+        self.data = feedparser.parse(self.search_url)
 
     def title(self):
-        return self.feed['entries'][0]['title'].replace('\n','')
+        return self.data['entries'][0]['title'].replace('\n','')
 
     def authors(self):
-        return list([i['name'] for i in self.feed['entries'][0]['authors']])
+        return list([i['name'] for i in self.data['entries'][0]['authors']])
 
     def first_author(self):
-        return self.feed['entries'][0]['authors'][0]['name']
+        return self.data['entries'][0]['authors'][0]['name']
 
     def published(self):
-        return self.feed['entries'][0]['published']
+        return self.data['entries'][0]['published']
 
     def pdf_url(self):
-        for i in self.feed['entries'][0]['links']:
+        for i in self.data['entries'][0]['links']:
             if i['title']=='title':
                 return i['href']
 
     def pdf(self):
         url = self.pdf_url()
         self.download_file(url, os.path.join(utils.pdf_read(),self.id+'.pdf'))
+        return os.path.join(utils.pdf_read(),self.id+'.pdf')
 
     def abstract(self):
-        return ['entries'][0]['summary_detail']['value'].replace('\n','')
+        return self.data['entries'][0]['summary_detail']['value'].replace('\n','')
 
 
 class searchLocal(searchGeneric):
