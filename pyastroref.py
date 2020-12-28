@@ -14,8 +14,8 @@ from gi.repository import GLib, Gtk, GObject, Gio
 from gi.repository import EvinceDocument
 from gi.repository import EvinceView
 
-ADSABS_SOURCE=1
-LOCAL_SOURCE=2
+EvinceDocument.init()
+
 
 class MyWindow(Gtk.Window):
     def __init__(self):
@@ -23,40 +23,37 @@ class MyWindow(Gtk.Window):
         self.pages = {}
 
         Gtk.Window.__init__(self, title="pyAstroRef")
-        EvinceDocument.init()
 
         self.search = Gtk.Entry()
         self.search.set_width_chars(100)
+        self.search.connect("activate",self.on_click_search)
 
-        self.button_search_source = Gtk.Switch()
-
-        self.button_search = Gtk.Button(label="Search")
-        self.button_search.connect("clicked", self.on_click_search)
-        self.button_search.set_can_default(True)
-        self.set_default(self.button_search)
-
-
-        self.button_opt = Gtk.Button(label="Options")
-        self.button_opt.connect("clicked", self.on_click_load_options)
+        self.search.set_can_default(True)
+        self.set_default(self.search)
 
         self.notebook = Gtk.Notebook()
+
+        self.button_opt = Gtk.Button()
+        self.button_opt.connect("clicked", self.on_click_load_options)
+        image = Gtk.Image()
+        image.set_from_icon_name('open-menu-symbolic', Gtk.IconSize.BUTTON)
+        self.button_opt.set_image(image)
+
+
+
+        hb = Gtk.HeaderBar()
+        hb.set_show_close_button(True)
+        hb.props.title = "pyAstroRef"
+        self.set_titlebar(hb)
+
+        hb.pack_start(self.button_opt)
 
         self.grid = Gtk.Grid()
         self.add(self.grid)
 
-        self.grid.add(self.button_opt)
-
-        self.grid.attach_next_to(self.search,self.button_opt,
-                            Gtk.PositionType.RIGHT,1,1)
-
-        self.grid.attach_next_to(self.button_search_source,self.search,
-                            Gtk.PositionType.RIGHT,1,1)
-
-        self.grid.attach_next_to(self.button_search,self.button_search_source,
-                            Gtk.PositionType.RIGHT,1,1)
-
-        self.grid.attach_next_to(self.notebook,self.button_opt,
-                             Gtk.PositionType.BOTTOM,5,5)
+        self.grid.add(self.search)
+        self.grid.attach_next_to(self.notebook,self.search,
+                             Gtk.PositionType.BOTTOM,1,1)        
 
         self.search.set_hexpand(True)
 
@@ -64,31 +61,11 @@ class MyWindow(Gtk.Window):
         self.notebook.set_vexpand(True)
         self.notebook.set_tab_pos(Gtk.PositionType.LEFT)
 
-        # self.main_page = Gtk.Box()
-        # self.main_page.set_border_width(10)
-        # self.main_page.add(Gtk.Label(label="Main"))
-        # self.notebook.append_page(self.main_page, Gtk.Label(label="Home"))
-        # self.notebook.set_tab_reorderable(self.main_page, True)
-
-        #self.new_page('1804.06669')
-
-        self.button_search_source.set_active(False)
-        self.settings['search'] = LOCAL_SOURCE # default
-        self.button_search_source.connect("notify::active", self.on_switch_activated)
-
-
-    def on_switch_activated(self, switch, gparam):
-        if switch.get_active():
-            self.settings['search'] = ADSABS_SOURCE
-        else:
-            self.settings['search'] = LOCAL_SOURCE
-
     def on_click_load_options(self, button):
         win = OptionsMenu()
         win.show_all()
 
     def on_click_search(self, button):
-        search_source = self.settings['search']
         query = self.search.get_text()
 
         if len(query) == 0:
@@ -107,7 +84,6 @@ class MyWindow(Gtk.Window):
         self.pages[filename] = pdfPage(self.notebook,'/data/Insync/refs/papers/'+filename+'.pdf')
 
         page = self.pages[filename]
-        #print(page, page.filename)
         index = self.notebook.append_page(page.add_page(),page.make_header())
         page.page_num = index
         self.notebook.set_tab_reorderable(page.page, True)
@@ -244,7 +220,7 @@ class OptionsMenu(Gtk.Window):
 
     def on_file_clicked(self, widget):
         dialog = Gtk.FileChooserDialog(
-            title="Please choose a file", parent=self, action=Gtk.FileChooserAction.SELECT_FOLDER
+            title="Please choose a folder", parent=self, action=Gtk.FileChooserAction.SELECT_FOLDER
         )
         dialog.add_buttons(
             Gtk.STOCK_CANCEL,
