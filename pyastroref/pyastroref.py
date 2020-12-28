@@ -7,6 +7,7 @@ import tempfile
 import urllib
 import shutil
 import feedparser
+import requests
 
 from . import utils
 
@@ -117,7 +118,7 @@ class Search(object):
         self.notebook.set_current_page(page.page_num)  
 
 
-class searchGeneric(object):
+class downloadGeneric(object):
 
     class file_downloader(object):
         def __init__(self,url):
@@ -146,7 +147,7 @@ class searchGeneric(object):
 
 
 
-class searchADS(searchGeneric):
+class downloadADSBibcode(downloadGeneric):
     def __init__(self,bibcode):
         self.id = bibcode
         self.search_url = 'https://ui.adsabs.harvard.edu/link_gateway/'
@@ -190,7 +191,7 @@ class searchADS(searchGeneric):
 
 
 
-class searchArxiv(searchGeneric):
+class downloadArxiv(downloadGeneric):
     def __init__(self,id):
         self.id = id
         self.search_url = 'http://export.arxiv.org/api/query?search_query='+self.id
@@ -224,9 +225,70 @@ class searchArxiv(searchGeneric):
     def abstract(self):
         return self.data['entries'][0]['summary_detail']['value'].replace('\n','')
 
+class downloadURL(downloadGeneric):
+    def __init__(self, url):
+        self.url = url
 
-class searchLocal(searchGeneric):
-    pass
+
+    def process_url(self):
+        res = {}
+
+        if 'adsabs.harvard.edu' in self.url: # ADSABS
+            q = self.url.split('/')
+            if len(q[-1])==19:
+                res['bibcode'] = q[-1]
+            elif len(q[-2])==19:
+                res['bibcode'] = q[-1]
+            else:
+                res['bibcode'] = None
+        elif 'arxiv.org/' in self.url: #ARXIV
+            res['arxiv'] = self.url.split('/')[-1]
+        elif "iopscience.iop.org" in self.url: #ApJ, ApJS
+            #http://iopscience.iop.org/article/10.3847/1538-4365/227/2/22/meta
+            res['doi'] = self.url.partition('article/')[-1].replace('/meta','')
+        elif 'academic.oup.com/mnras' in self.url: #MNRAS
+            # https://academic.oup.com/mnras/article/433/2/1133/1747991
+            # Fake some headers
+            headers = {'user-agent': 'my-app/0.0.1'}
+            r=requests.get(self.url,headers=headers)
+            for i in r.text.split():
+                if 'doi.org' in i and '>' in i:
+                    break # Many matches but we want the line which has a href=url>
+            res['doi'] = i.split('>')[1].split('<')[0].split('doi.org/')[1]
+        elif 'aanda.org' in self.url: #A&A:
+            #https://www.aanda.org/articles/aa/abs/2017/07/aa30698-17/aa30698-17.html
+            #Resort to downloading webpage as the url is useless
+            data = urllib.request.urlopen(self.url)
+            html = data.read()
+            ind = html.index(b'citation_bibcode')
+            x = html[ind:ind+50].decode()
+            #bibcodes are 19 characters, but the & in A&A gets converted to %26
+            res['bibcode'] = str(x[27:27+21]).replace('%26','&')
+        elif 'nature.com' in self.url: #nature
+            #https://www.nature.com/articles/s41550-018-0442-z #plus junk after this
+            if '?' in self.url:
+                self.url = self.url[:self.url.index("?")]
+            data = urllib.request.urlopen(self.url+'.ris')
+            html = data.read().decode().split('\n')
+            for i in html:
+                if 'DO  -' in i:
+                    doi = i.split()[-1]
+                    res['doi'] = i.split()[-1]
+                    break
+        elif 'sciencemag.org' in self.url: #science
+            #http://science.sciencemag.org/content/305/5690/1582
+            data = urllib.request.urlopen(self.url)
+            html = data.read()
+            ind = html.index(b'citation_doi')
+            doi = html[ind:ind+100].decode().split('/>')[0].split('=')[-1].strip().replace('"','')
+            res['doi'] = doi
+        elif 'PhysRevLett' in self.url: #Phys Review Letter
+            #https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.116.241103
+            doi = '/'.join(self.url.split('/')[-2:])
+            res['doi'] = doi
+            
+        return res
+
 
 
 
