@@ -145,7 +145,44 @@ class searchGeneric(object):
 
 
 class searchADS(searchGeneric):
-    pass
+    def __init__(self,bibcode):
+        self.id = bibcode
+        self.search_url = 'https://ui.adsabs.harvard.edu/link_gateway/'
+        ads.config.token = utils.ads_read()
+        self.get_data()
+    
+    def get_data(self):
+        self.data = list(ads.SearchQuery(bibcode=bibcode,
+                    fl=['bibcode','title','author','year','abstract',
+                        'pubdate']))[0]
+
+    def title(self):
+        return self.data.title
+
+    def authors(self):
+        return self.data.author
+
+    def first_author(self):
+        return self.data.author[0]
+
+    def published(self):
+        return self.data.pubdate
+
+    def pdf(self):
+        strs = ['PUB_PDF','EPRINT_PDF','ADS_PDF']
+        output = os.path.join(utils.pdf_read(),self.id+'.pdf')
+        for i in strs:
+            url = self.search_url+str(self.id)+i
+            self.download_file(url, output)
+            # Did file download?
+            if os.path.exists(output):
+                return output
+
+    def abstract(self):
+        return ['entries'][0]['summary_detail']['value'].replace('\n','')
+
+
+
 
 class searchArxiv(searchGeneric):
     def __init__(self,id):
