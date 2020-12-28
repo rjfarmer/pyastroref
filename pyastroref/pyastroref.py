@@ -8,8 +8,7 @@ import urllib
 import shutil
 import feedparser
 
-import adsabs
-import utils
+from . import utils
 
 import gi
 gi.require_version("Gtk", "3.0")
@@ -418,10 +417,14 @@ class OptionsMenu(Gtk.Window):
             
         dialog.destroy()
 
-if __name__ == "__main__":
+def main():
     win = MyWindow()
     win.connect("destroy", Gtk.main_quit)
     win.set_hide_titlebar_when_maximized(False)
     win.maximize()
     win.show_all()
     Gtk.main()
+
+
+if __name__ == "__main__":
+    main()
