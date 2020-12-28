@@ -91,11 +91,11 @@ class Search(object):
         self.query = query
         self.notebook = notebook
 
-        #self.new_pdf_page(query)
-        self.new_search_page(query)
+        self.new_pdf_page(query)
+        #self.new_search_page(query)
 
     def new_pdf_page(self,filename):
-        self.new_page(pdfPage,'/data/Insync/refs/papers/'+filename+'.pdf')
+        self.new_page(pdfPage,os.path.join(utils.pdf_read(),self.query+'.pdf'))
 
     def new_search_page(self, query):
         self.new_page(searchPage,query)
@@ -137,9 +137,12 @@ class searchGeneric(object):
                 os.remove(self.filename)
 
     def download_file(self,url,filename):
+        if os.path.exists(filename):
+            return filename
         with self.file_downloader(url) as f:
             shutil.move(f,filename)
-
+        if os.path.exists(filename):
+            return filename
 
 
 
@@ -170,15 +173,19 @@ class searchADS(searchGeneric):
     def pdf(self):
         strs = ['PUB_PDF','EPRINT_PDF','ADS_PDF']
         output = os.path.join(utils.pdf_read(),self.id+'.pdf')
+        # Does file allready exist?
+        if os.path.exists(output):
+            return output
+        
         for i in strs:
             url = self.search_url+str(self.id)+i
-            self.download_file(url, output)
+            f = self.download_file(url, output)
             # Did file download?
-            if os.path.exists(output):
-                return output
+            if f is not None:
+                return f
 
     def abstract(self):
-        return ['entries'][0]['summary_detail']['value'].replace('\n','')
+        return self.data.abstract
 
 
 
@@ -211,8 +218,8 @@ class searchArxiv(searchGeneric):
 
     def pdf(self):
         url = self.pdf_url()
-        self.download_file(url, os.path.join(utils.pdf_read(),self.id+'.pdf'))
-        return os.path.join(utils.pdf_read(),self.id+'.pdf')
+        output = os.path.join(utils.pdf_read(),self.id+'.pdf')
+        return self.download_file(url, output)
 
     def abstract(self):
         return self.data['entries'][0]['summary_detail']['value'].replace('\n','')
