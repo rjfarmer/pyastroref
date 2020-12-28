@@ -59,6 +59,7 @@ class MyWindow(Gtk.Window):
         page.page_num = index
         self.notebook.set_tab_reorderable(page.page, True)
         self.notebook.show_all()
+        self.notebook.set_current_page(page.page_num)
 
 
     def setup_search_bar(self):
@@ -105,7 +106,6 @@ class pdfPage(object):
         self.filename = 'file://'+filename
         self.doc = EvinceDocument.Document.factory_get_document(self.filename)
 
-        self.arixv = None
         self.page = None
         self.notebook = notebook
         self.page_num = -1
@@ -123,7 +123,7 @@ class pdfPage(object):
         header = Gtk.HBox()
         title_label = self.name()
         image = Gtk.Image()
-        image.set_from_icon_name('gtk-close', Gtk.IconSize.BUTTON)
+        image.set_from_icon_name('window-close-symbolic', Gtk.IconSize.BUTTON)
         close_button = Gtk.Button()
         close_button.set_image(image)
         close_button.set_relief(Gtk.ReliefStyle.NONE)
@@ -150,9 +150,28 @@ class pdfPage(object):
        scroll.add(view)
        return scroll  
 
-    def show_info(self):
-       info = Gtk.TextView()
-       return info 
+    def show_info(self):    
+        info = Gtk.Grid()
+
+        info.set_column_homogeneous(True)
+        info.set_orientation(Gtk.Orientation.VERTICAL)
+
+        info.add(Gtk.Label('Title'))
+        info.add(Gtk.Label('Authors'))
+        info.add(Gtk.Label('Journal'))
+        info.add(Gtk.Label('Date Published'))
+        info.add(Gtk.Label('Date Added'))
+        info.add(Gtk.Label('Arixv ID'))
+        info.add(Gtk.Label('Bibcode'))
+
+        info.add(Gtk.Label('Abstract'))
+
+        info.add(Gtk.Label('References'))
+        info.add(Gtk.Label('Citations'))
+        info.add(Gtk.Label('Images'))
+        info.add(Gtk.Label('Bibtex'))
+
+        return info 
 
     def name(self):
         return Gtk.Label(label=os.path.basename(self.filename))
@@ -164,6 +183,8 @@ class pdfPage(object):
         for i in text.split('\n'):
             if 'arXiv:' in i :
                 self.arixv = i.split()[0][len('arXiv:'):]
+
+        return None
 
     def get_details(self):
         if self.arixv is None:
