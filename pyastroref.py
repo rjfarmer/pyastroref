@@ -60,7 +60,7 @@ class MyWindow(Gtk.Window):
 
 
     def setup_search_bar(self):
-        self.search = Gtk.Entry()
+        self.search = Gtk.SearchEntry()
         self.search.set_width_chars(100)
         self.search.connect("activate",self.on_click_search)
 
