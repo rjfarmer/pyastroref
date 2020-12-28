@@ -115,18 +115,7 @@ class Search(object):
         self.notebook.set_current_page(page.page_num)  
 
 
-class searchPage(object):
-    def __init__(self, notebook, query):
-        self._query = query
-
-        self.page = None
-        self.notebook = notebook
-        self.page_num = -1    
-
-    def add_page(self):
-        self.page = Gtk.ScrolledWindow()
-
-        return self.page
+class Page(object):
 
     def make_header(self):
         header = Gtk.HBox()
@@ -145,14 +134,29 @@ class searchPage(object):
 
         return header
 
+
     def on_tab_close(self, button):
         self.notebook.remove_page(self.page_num)
         self.page_num = -1
 
+
+class searchPage(Page):
+    def __init__(self, notebook, query):
+        self._query = query
+
+        self.page = None
+        self.notebook = notebook
+        self.page_num = -1    
+
+    def add_page(self):
+        self.page = Gtk.ScrolledWindow()
+
+        return self.page
+
     def name(self):
         return Gtk.Label(label="search: " + str(self._query))
 
-class pdfPage(object):
+class pdfPage(Page):
     def __init__(self, notebook, filename):
         self._filename = filename
         self.filename = 'file://'+filename
@@ -170,28 +174,6 @@ class pdfPage(object):
         self.page.add2(self.show_pdf())
 
         return self.page
-
-    def make_header(self):
-        header = Gtk.HBox()
-        title_label = self.name()
-        image = Gtk.Image()
-        image.set_from_icon_name('window-close-symbolic', Gtk.IconSize.BUTTON)
-        close_button = Gtk.Button()
-        close_button.set_image(image)
-        close_button.set_relief(Gtk.ReliefStyle.NONE)
-        close_button.connect('clicked', self.on_tab_close)
-        header.pack_start(title_label,
-                          expand=True, fill=True, padding=0)
-        header.pack_end(close_button,
-                        expand=False, fill=False, padding=1)
-        header.show_all()
-
-        return header
-
-    def on_tab_close(self, button):
-        self.notebook.remove_page(self.page_num)
-        self.page_num = -1
-
 
     def show_pdf(self):
        scroll = Gtk.ScrolledWindow()
