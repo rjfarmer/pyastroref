@@ -99,7 +99,12 @@ class Search(object):
         self.new_page(pdfPage,os.path.join(utils.pdf_read(),self.query+'.pdf'))
 
     def new_search_page(self, query):
-        self.new_page(searchPage,query)
+        def search():
+            self.new_page(searchPage,query)
+
+        thread = threading.Thread(target=search)
+        thread.daemon = True
+        thread.start()
 
     def new_page(self,ptype,name):
         if name in _pages:
