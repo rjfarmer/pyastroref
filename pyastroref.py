@@ -24,42 +24,11 @@ class MyWindow(Gtk.Window):
 
         Gtk.Window.__init__(self, title="pyAstroRef")
 
-        self.search = Gtk.Entry()
-        self.search.set_width_chars(100)
-        self.search.connect("activate",self.on_click_search)
+        self.setup_headerbar()
+        self.setup_search_bar()
+        self.setup_notebook()
+        self.setup_grid()       
 
-        self.search.set_can_default(True)
-        self.set_default(self.search)
-
-        self.notebook = Gtk.Notebook()
-
-        self.button_opt = Gtk.Button()
-        self.button_opt.connect("clicked", self.on_click_load_options)
-        image = Gtk.Image()
-        image.set_from_icon_name('open-menu-symbolic', Gtk.IconSize.BUTTON)
-        self.button_opt.set_image(image)
-
-
-
-        hb = Gtk.HeaderBar()
-        hb.set_show_close_button(True)
-        hb.props.title = "pyAstroRef"
-        self.set_titlebar(hb)
-
-        hb.pack_start(self.button_opt)
-
-        self.grid = Gtk.Grid()
-        self.add(self.grid)
-
-        self.grid.add(self.search)
-        self.grid.attach_next_to(self.notebook,self.search,
-                             Gtk.PositionType.BOTTOM,1,1)        
-
-        self.search.set_hexpand(True)
-
-        self.notebook.set_hexpand(True)
-        self.notebook.set_vexpand(True)
-        self.notebook.set_tab_pos(Gtk.PositionType.LEFT)
 
     def on_click_load_options(self, button):
         win = OptionsMenu()
@@ -88,6 +57,44 @@ class MyWindow(Gtk.Window):
         page.page_num = index
         self.notebook.set_tab_reorderable(page.page, True)
         self.notebook.show_all()
+
+
+    def setup_search_bar(self):
+        self.search = Gtk.Entry()
+        self.search.set_width_chars(100)
+        self.search.connect("activate",self.on_click_search)
+
+        self.search.set_can_default(True)
+        self.set_default(self.search)
+        self.search.set_hexpand(True)
+
+    def setup_headerbar(self):
+        self.button_opt = Gtk.Button()
+        self.button_opt.connect("clicked", self.on_click_load_options)
+        image = Gtk.Image()
+        image.set_from_icon_name('open-menu-symbolic', Gtk.IconSize.BUTTON)
+        self.button_opt.set_image(image)
+
+        hb = Gtk.HeaderBar()
+        hb.set_show_close_button(True)
+        hb.props.title = "pyAstroRef"
+        self.set_titlebar(hb)
+
+        hb.pack_start(self.button_opt)
+
+    def setup_notebook(self):
+        self.notebook = Gtk.Notebook()
+        self.notebook.set_hexpand(True)
+        self.notebook.set_vexpand(True)
+        self.notebook.set_tab_pos(Gtk.PositionType.LEFT)
+        
+    def setup_grid(self):
+        self.grid = Gtk.Grid()
+        self.add(self.grid)
+
+        self.grid.add(self.search)
+        self.grid.attach_next_to(self.notebook,self.search,
+                             Gtk.PositionType.BOTTOM,1,1) 
 
 
 class pdfPage(object):
