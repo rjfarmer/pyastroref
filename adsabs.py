@@ -31,39 +31,6 @@ search_syntax = ["abs:","ack:","aff:","abstract:","alternate_bibcode:",
 
 # Doi prefix https://gist.github.com/hubgit/5974663
 
-def api_filename():
-    return os.path.join(os.path.expanduser('~'),'.ads','dev_key')
-
-def orcid_filename():
-    return os.path.join(os.path.expanduser('~'),'.ads','orcid')
-
-
-def load_key(filename):
-    os.makedirs(os.path.dirname(filename),exist_ok=True)
-    with open(filename,'r') as f:
-        return f.readline().strip()
-    return ''    
-
-def save_key(filename, value):
-    os.makedirs(os.path.dirname(filename),exist_ok=True)
-    with open(filename,'w') as f:
-        f.write(value)
-
-def save_adskey(value):
-    filename = api_filename()
-    save_key(filename, value)  
-
-def save_orcidkey(value):
-    filename = orcid_filename()
-    save_key(filename, value) 
-
-def load_adskey():
-    filename = api_filename()
-    return load_key(filename)
-
-def load_orcidkey():
-    filename = orcid_filename()
-    return load_key(filename)
     
 # def parse_search(query):
 #     if os.path.isfile(query):

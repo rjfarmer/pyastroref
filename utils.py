@@ -8,25 +8,38 @@ else:
     
 dir_store = appdirs.AppDirs("pyastroref")
 
-def _store(filename):
+def loc(filename):
     os.makedirs(dir_store.user_config_dir,exist_ok=True)
     return os.path.join(dir_store.user_config_dir,filename)
 
-def _loc(filename):
+def read(filename):
     try:
         with open(filename,'r') as f:
             return f.readline().strip()
     except:
-        return None
+        return ''
 
-def pdf_store():
-    return _store('pdf_store')
+def save(filename,data):
+    try:
+        with open(filename,'w') as f:
+            f.write(data)
+    except:
+        pass
 
-def pdf_loc():
-    return _loc(pdf_store())
+def pdf_save(folder):
+    return save(loc('pdf_store'),folder)
+
+def pdf_read():
+    return read(loc('pdf_store'))
     
-def db_store():
-    return _store('db_store') 
-    
-def db_loc():
-    return _loc(db_store())
+def ads_save(key):
+    return save(loc('ads'),key)
+
+def ads_read():
+    return read(loc('ads'))
+
+def orcid_save(key):
+    return save(loc('orcid'),key)
+
+def orcid_read():
+    return read(loc('orcid'))

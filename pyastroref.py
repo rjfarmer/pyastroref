@@ -3,16 +3,16 @@ import time
 import os
 import adsabs
 
-import gi
+import utils
 
+import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version('EvinceDocument', '3.0')
 gi.require_version('EvinceView', '3.0')
-
 from gi.repository import GLib, Gtk, GObject, Gio
-
 from gi.repository import EvinceDocument
 from gi.repository import EvinceView
+
 
 EvinceDocument.init()
 
@@ -179,14 +179,20 @@ class OptionsMenu(Gtk.Window):
 
         self.ads_entry = Gtk.Entry()
         self.ads_entry.set_width_chars(50)
-        self.ads_entry.set_text(adsabs.load_adskey())
+        self.ads_entry.set_text(utils.ads_read())
 
         self.orcid_entry = Gtk.Entry()
-        self.orcid_entry.set_text(adsabs.load_orcidkey())
+        self.orcid_entry.set_text(utils.orcid_read())
         self.orcid_entry.set_width_chars(50)
 
-        self.folder_entry = Gtk.Button(label="Choose Folder")
+        label = "Choose Folder"
+        if utils.pdf_read() is not None:
+            label = utils.pdf_read()
+
+        self.folder_entry = Gtk.Button(label=label)
         self.folder_entry.connect("clicked", self.on_file_clicked)
+
+
 
         ads_label = Gtk.Label(label='ADSABS ID')
         orcid_label = Gtk.Label(label='ORCID ID')
@@ -218,11 +224,11 @@ class OptionsMenu(Gtk.Window):
 
     def save_ads(self, button):
         value = self.ads_entry.get_text()
-        adsabs.save_adskey(value)
+        utils.ads_save(value)
 
     def save_orcid(self, button):
         value = self.orcid_entry.get_text()
-        adsabs.save_orcidkey(value)    
+        utils.orcid_save(value)    
 
 
 
@@ -239,7 +245,9 @@ class OptionsMenu(Gtk.Window):
 
         response = dialog.run()
         if response == Gtk.ResponseType.OK:
-            widget.set_label(dialog.get_filename())
+            f = dialog.get_filename()
+            widget.set_label(f)
+            utils.pdf_save(f)
             
         dialog.destroy()
 
