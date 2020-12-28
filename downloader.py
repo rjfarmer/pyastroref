@@ -6,7 +6,7 @@ import urllib
 import os
 import shutil
 
-import pyastroref.utils.utils as utils
+import utils
 
 class file_downloader(object):
     def __init__(self,url):
@@ -28,7 +28,7 @@ class file_downloader(object):
             
             
 class download(object):
-    def __init__(self, bibcode,identifers):
+    def __init__(self, bibcode, identifers):
         self.identifers = identifers
         self.bibcode = bibcode
         
@@ -48,7 +48,7 @@ class download(object):
                 pass
             
     def save_name(self):
-        with open(utils.pdf_store(),'r') as f:
+        with open(utils.pdf_read(),'r') as f:
             folder = f.readline().strip()
         return os.path.join(folder,self.bibcode+'.pdf')
         

@@ -3,14 +3,12 @@
 import os
 import re
 import urllib
+import utils
 
-#import pyastroref.search.search as search
-#import pyastroref.utils.utils as utils
-
-# if utils.testing:
-#     import ads.sandbox as ads
-# else:
-#     import ads
+if utils.testing:
+    import ads.sandbox as ads
+else:
+    import ads
 
 
 _fl_short =  ['bibcode','title','author','year']

@@ -3,8 +3,12 @@
 import threading
 import time
 import os
-import adsabs
+import tempfile
+import urllib
+import shutil
+import feedparser
 
+import adsabs
 import utils
 
 import gi
@@ -91,7 +95,6 @@ class Search(object):
         #self.new_pdf_page(query)
         self.new_search_page(query)
 
-
     def new_pdf_page(self,filename):
         self.new_page(pdfPage,'/data/Insync/refs/papers/'+filename+'.pdf')
 
@@ -113,6 +116,74 @@ class Search(object):
         self.notebook.set_tab_reorderable(page.page, True)
         self.notebook.show_all()
         self.notebook.set_current_page(page.page_num)  
+
+
+class searchGeneric(object):
+
+    class file_downloader(object):
+        def __init__(self,url):
+            self.url = url
+        
+        def __enter__(self):
+            self.out_file, self.filename = tempfile.mkstemp(suffix=b'')
+            try:
+                with urllib.request.urlopen(self.url) as response, open(self.filename,'wb') as f:
+                    shutil.copyfileobj(response, f)
+                    return self.filename
+            except:
+                return None
+
+        def __exit__(self, type, value, tb):
+            if tb is not None:
+                os.remove(self.filename)
+
+    def download_file(self,url,filename):
+        with self.file_downloader(url) as f:
+            shutil.move(f,filename)
+
+
+
+
+class searchADS(searchGeneric):
+    pass
+
+class searchArxiv(searchGeneric):
+    def __init__(self,id):
+        self.id = id
+        self.search_url = 'http://export.arxiv.org/api/query?search_query='+self.id
+        self.get_atom()
+
+    def get_atom(self):
+        self.feed = feedparser.parse(self.search_url)
+
+    def title(self):
+        return self.feed['entries'][0]['title'].replace('\n','')
+
+    def authors(self):
+        return list([i['name'] for i in self.feed['entries'][0]['authors']])
+
+    def first_author(self):
+        return self.feed['entries'][0]['authors'][0]['name']
+
+    def published(self):
+        return self.feed['entries'][0]['published']
+
+    def pdf_url(self):
+        for i in self.feed['entries'][0]['links']:
+            if i['title']=='title':
+                return i['href']
+
+    def pdf(self):
+        url = self.pdf_url()
+        self.download_file(url, os.path.join(utils.pdf_read(),self.id+'.pdf'))
+
+    def abstract(self):
+        return ['entries'][0]['summary_detail']['value'].replace('\n','')
+
+
+class searchLocal(searchGeneric):
+    pass
+
 
 
 class Page(object):
@@ -190,6 +261,7 @@ class pdfPage(Page):
         info.set_column_homogeneous(True)
         info.set_orientation(Gtk.Orientation.VERTICAL)
 
+        #TODO: Extend this with actual data
         info.add(Gtk.Label(label='Title'))
         info.add(Gtk.Label(label='Authors'))
         info.add(Gtk.Label(label='Journal'))
