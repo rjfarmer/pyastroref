@@ -18,6 +18,7 @@ from gi.repository import EvinceView
 
 EvinceDocument.init()
 
+_pages = {}
 
 class MyWindow(Gtk.Window):
     def __init__(self):
@@ -42,25 +43,7 @@ class MyWindow(Gtk.Window):
         if len(query) == 0:
             return
 
-        self.new_page(query)
-
-
-    def new_page(self,filename):
-
-        if filename in self.pages:
-            if self.pages[filename].page_num >= 0:
-                self.notebook.set_current_page(self.pages[filename].page_num)
-                return
-        
-        self.pages[filename] = pdfPage(self.notebook,'/data/Insync/refs/papers/'+filename+'.pdf')
-
-        page = self.pages[filename]
-        index = self.notebook.append_page(page.add_page(),page.make_header())
-        page.page_num = index
-        self.notebook.set_tab_reorderable(page.page, True)
-        self.notebook.show_all()
-        self.notebook.set_current_page(page.page_num)
-
+        Search(self.notebook, query)
 
     def setup_search_bar(self):
         self.search = Gtk.SearchEntry()
@@ -99,6 +82,75 @@ class MyWindow(Gtk.Window):
         self.grid.attach_next_to(self.notebook,self.search,
                              Gtk.PositionType.BOTTOM,1,1) 
 
+
+class Search(object):
+    def __init__(self, notebook, query):
+        self.query = query
+        self.notebook = notebook
+
+        #self.new_pdf_page(query)
+        self.new_search_page(query)
+
+
+    def new_pdf_page(self,filename):
+        self.new_page(pdfPage,'/data/Insync/refs/papers/'+filename+'.pdf')
+
+    def new_search_page(self, query):
+        self.new_page(searchPage,query)
+
+    def new_page(self,ptype,name):
+        if name in _pages:
+            if _pages[name].page_num >= 0:
+                self.notebook.set_current_page(_pages[name].page_num)
+                return
+        
+        _pages[name] = ptype(self.notebook, name)
+        self.add_to_notebook(_pages[name])        
+
+    def add_to_notebook(self, page):
+        index = self.notebook.append_page(page.add_page(),page.make_header())
+        page.page_num = index
+        self.notebook.set_tab_reorderable(page.page, True)
+        self.notebook.show_all()
+        self.notebook.set_current_page(page.page_num)  
+
+
+class searchPage(object):
+    def __init__(self, notebook, query):
+        self._query = query
+
+        self.page = None
+        self.notebook = notebook
+        self.page_num = -1    
+
+    def add_page(self):
+        self.page = Gtk.ScrolledWindow()
+
+        return self.page
+
+    def make_header(self):
+        header = Gtk.HBox()
+        title_label = self.name()
+        image = Gtk.Image()
+        image.set_from_icon_name('window-close-symbolic', Gtk.IconSize.BUTTON)
+        close_button = Gtk.Button()
+        close_button.set_image(image)
+        close_button.set_relief(Gtk.ReliefStyle.NONE)
+        close_button.connect('clicked', self.on_tab_close)
+        header.pack_start(title_label,
+                          expand=True, fill=True, padding=0)
+        header.pack_end(close_button,
+                        expand=False, fill=False, padding=1)
+        header.show_all()
+
+        return header
+
+    def on_tab_close(self, button):
+        self.notebook.remove_page(self.page_num)
+        self.page_num = -1
+
+    def name(self):
+        return Gtk.Label(label="search: " + str(self._query))
 
 class pdfPage(object):
     def __init__(self, notebook, filename):
@@ -156,20 +208,20 @@ class pdfPage(object):
         info.set_column_homogeneous(True)
         info.set_orientation(Gtk.Orientation.VERTICAL)
 
-        info.add(Gtk.Label('Title'))
-        info.add(Gtk.Label('Authors'))
-        info.add(Gtk.Label('Journal'))
-        info.add(Gtk.Label('Date Published'))
-        info.add(Gtk.Label('Date Added'))
-        info.add(Gtk.Label('Arixv ID'))
-        info.add(Gtk.Label('Bibcode'))
+        info.add(Gtk.Label(label='Title'))
+        info.add(Gtk.Label(label='Authors'))
+        info.add(Gtk.Label(label='Journal'))
+        info.add(Gtk.Label(label='Date Published'))
+        info.add(Gtk.Label(label='Date Added'))
+        info.add(Gtk.Label(label='Arixv ID'))
+        info.add(Gtk.Label(label='Bibcode'))
 
-        info.add(Gtk.Label('Abstract'))
+        info.add(Gtk.Label(label='Abstract'))
 
-        info.add(Gtk.Label('References'))
-        info.add(Gtk.Label('Citations'))
-        info.add(Gtk.Label('Images'))
-        info.add(Gtk.Label('Bibtex'))
+        info.add(Gtk.Label(label='References'))
+        info.add(Gtk.Label(label='Citations'))
+        info.add(Gtk.Label(label='Images'))
+        info.add(Gtk.Label(label='Bibtex'))
 
         return info 
 
