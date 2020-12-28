@@ -92,8 +92,8 @@ class Search(object):
         self.query = query
         self.notebook = notebook
 
-        self.new_pdf_page(query)
-        #self.new_search_page(query)
+        #self.new_pdf_page(query)
+        self.new_search_page(query)
 
     def new_pdf_page(self,filename):
         self.new_page(pdfPage,os.path.join(utils.pdf_read(),self.query+'.pdf'))
@@ -141,6 +141,7 @@ class downloadGeneric(object):
         if os.path.exists(filename):
             return filename
         with self.file_downloader(url) as f:
+            print(url,f,filename,os.path.exists(filename))
             shutil.move(f,filename)
         if os.path.exists(filename):
             return filename
@@ -214,11 +215,14 @@ class downloadArxiv(downloadGeneric):
 
     def pdf_url(self):
         for i in self.data['entries'][0]['links']:
-            if i['title']=='title':
-                return i['href']
+            if 'title' in i:
+                if i['title']=='pdf':
+                    return i['href']
 
     def pdf(self):
         url = self.pdf_url()
+        if url is None:
+            raise ValueError("Bad URL")
         output = os.path.join(utils.pdf_read(),self.id+'.pdf')
         return self.download_file(url, output)
 
@@ -229,6 +233,7 @@ class downloadURL(downloadGeneric):
     def __init__(self, url):
         self.url = url
 
+        self.input = self.process_url()
 
     def process_url(self):
         res = {}
@@ -326,17 +331,40 @@ class searchPage(Page):
         self.page_num = -1    
 
     def add_page(self):
-        self.page = Gtk.ScrolledWindow()
-
+        pdfname = self.parse_query()
+        self._page = pdfPage(self.notebook, pdfname)
+        self._page.add_page()
+        self.page = self._page.page
         return self.page
 
     def name(self):
         return Gtk.Label(label="search: " + str(self._query))
 
+    def isnum(self,num):
+        try:
+            float(num)
+            return True
+        except ValueError:
+            return False
+
+    def parse_query(self):
+        # What type of query is it?
+        if any(i in self._query for i in ['http','www']):
+            qtype = downloadURL(self._query)
+        elif any(i in self._query for i in ['arxiv','arixiv']) or (self.isnum(self._query) and '.' in self._query):
+            qtype = downloadArxiv(self._query)
+        elif len(self._query)==19 and self.isnum(self._query[0:4]):
+            qtype = downloadADSBibcode(self._query)
+        else:
+            raise NotImplementedError
+
+        return qtype.pdf() 
+
 class pdfPage(Page):
-    def __init__(self, notebook, filename):
+    def __init__(self, notebook, filename, data=None):
         self._filename = filename
         self.filename = 'file://'+filename
+        self.data = data
         self.doc = EvinceDocument.Document.factory_get_document(self.filename)
 
         self.page = None
