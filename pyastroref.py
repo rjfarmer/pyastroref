@@ -110,15 +110,12 @@ class pdfPage(object):
 
 
     def add_page(self):
+        self.page = Gtk.HPaned()
 
-        page = Gtk.Box()
-        page.set_border_width(10)
-        page.pack_start(
-                self.show_pdf(),
-                True,True,0
-            )
-        self.page = page
-        return page
+        self.page.add1(self.show_info())
+        self.page.add2(self.show_pdf())
+
+        return self.page
 
     def make_header(self):
         header = Gtk.HBox()
@@ -150,6 +147,10 @@ class pdfPage(object):
        view.set_model(model)
        scroll.add(view)
        return scroll  
+
+    def show_info(self):
+       info = Gtk.TextView()
+       return info 
 
     def name(self):
         return Gtk.Label(label=os.path.basename(self.filename))
