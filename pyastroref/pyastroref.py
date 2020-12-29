@@ -8,6 +8,7 @@ import urllib
 import shutil
 import feedparser
 import requests
+import ads
 
 from . import utils
 
@@ -168,24 +169,46 @@ class downloadGeneric(object):
         if os.path.exists(filename):
             return filename
         with self.file_downloader(url) as f:
-            print(url,f,filename,os.path.exists(filename))
+            if f is None:
+                return None
             shutil.move(f,filename)
         if os.path.exists(filename):
             return filename
 
+class downloadADS(downloadGeneric):
+    _fields = ['bibcode','title','author','year','abstract',
+                        'pubdate']
+    _search_url = 'https://ui.adsabs.harvard.edu/link_gateway/'
 
-
-class downloadADSBibcode(downloadGeneric):
-    def __init__(self,bibcode):
-        self.id = bibcode
-        self.search_url = 'https://ui.adsabs.harvard.edu/link_gateway/'
+    def __init__(self,bibcode=None,ident=None):
         ads.config.token = utils.ads_read()
-        self.get_data()
+        
+        self.bibcode = bibcode
+        self.ident = ident
+
+        if self.bibcode is not None:
+            self.get_data()
+        if self.ident is not None:
+            self.get_bibcode()
     
     def get_data(self):
-        self.data = list(ads.SearchQuery(bibcode=bibcode,
-                    fl=['bibcode','title','author','year','abstract',
-                        'pubdate']))[0]
+        self.data = list(ads.SearchQuery(bibcode=self.bibcode,
+                    fl=self._fields))[0]
+
+    def get_bibcode(self):
+        if 'bibcode' in self.ident:
+            self.bibcode = self.ident['bibcode']
+            self.get_data()
+            return
+
+        if 'doi' in self.ident:
+            self.data = list(ads.SearchQuery(doi=self.ident['doi'],fl=self._fields))[0]
+        elif 'arxiv' in self.ident:
+            self.data = list(ads.SearchQuery(q=self.ident['arxiv'],fl=self._fields))[0]
+        else:
+            raise ValueError("Didnt match ident, got",self.ident)
+
+        self.bibcode = self.data.bibcode
 
     def title(self):
         return self.data.title
@@ -200,14 +223,14 @@ class downloadADSBibcode(downloadGeneric):
         return self.data.pubdate
 
     def pdf(self):
-        strs = ['PUB_PDF','EPRINT_PDF','ADS_PDF']
-        output = os.path.join(utils.pdf_read(),self.id+'.pdf')
+        strs = ['/PUB_PDF','/EPRINT_PDF','/ADS_PDF']
+        output = os.path.join(utils.pdf_read(),self.bibcode+'.pdf')
         # Does file allready exist?
         if os.path.exists(output):
             return output
         
         for i in strs:
-            url = self.search_url+str(self.id)+i
+            url = self._search_url+str(self.bibcode)+i
             f = self.download_file(url, output)
             # Did file download?
             if f is not None:
@@ -255,73 +278,6 @@ class downloadArxiv(downloadGeneric):
 
     def abstract(self):
         return self.data['entries'][0]['summary_detail']['value'].replace('\n','')
-
-class downloadURL(downloadGeneric):
-    def __init__(self, url):
-        self.url = url
-
-        self.input = self.process_url()
-
-    def process_url(self):
-        res = {}
-
-        if 'adsabs.harvard.edu' in self.url: # ADSABS
-            q = self.url.split('/')
-            if len(q[-1])==19:
-                res['bibcode'] = q[-1]
-            elif len(q[-2])==19:
-                res['bibcode'] = q[-1]
-            else:
-                res['bibcode'] = None
-        elif 'arxiv.org/' in self.url: #ARXIV
-            res['arxiv'] = self.url.split('/')[-1]
-        elif "iopscience.iop.org" in self.url: #ApJ, ApJS
-            #http://iopscience.iop.org/article/10.3847/1538-4365/227/2/22/meta
-            res['doi'] = self.url.partition('article/')[-1].replace('/meta','')
-        elif 'academic.oup.com/mnras' in self.url: #MNRAS
-            # https://academic.oup.com/mnras/article/433/2/1133/1747991
-            # Fake some headers
-            headers = {'user-agent': 'my-app/0.0.1'}
-            r=requests.get(self.url,headers=headers)
-            for i in r.text.split():
-                if 'doi.org' in i and '>' in i:
-                    break # Many matches but we want the line which has a href=url>
-            res['doi'] = i.split('>')[1].split('<')[0].split('doi.org/')[1]
-        elif 'aanda.org' in self.url: #A&A:
-            #https://www.aanda.org/articles/aa/abs/2017/07/aa30698-17/aa30698-17.html
-            #Resort to downloading webpage as the url is useless
-            data = urllib.request.urlopen(self.url)
-            html = data.read()
-            ind = html.index(b'citation_bibcode')
-            x = html[ind:ind+50].decode()
-            #bibcodes are 19 characters, but the & in A&A gets converted to %26
-            res['bibcode'] = str(x[27:27+21]).replace('%26','&')
-        elif 'nature.com' in self.url: #nature
-            #https://www.nature.com/articles/s41550-018-0442-z #plus junk after this
-            if '?' in self.url:
-                self.url = self.url[:self.url.index("?")]
-            data = urllib.request.urlopen(self.url+'.ris')
-            html = data.read().decode().split('\n')
-            for i in html:
-                if 'DO  -' in i:
-                    doi = i.split()[-1]
-                    res['doi'] = i.split()[-1]
-                    break
-        elif 'sciencemag.org' in self.url: #science
-            #http://science.sciencemag.org/content/305/5690/1582
-            data = urllib.request.urlopen(self.url)
-            html = data.read()
-            ind = html.index(b'citation_doi')
-            doi = html[ind:ind+100].decode().split('/>')[0].split('=')[-1].strip().replace('"','')
-            res['doi'] = doi
-        elif 'PhysRevLett' in self.url: #Phys Review Letter
-            #https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.116.241103
-            doi = '/'.join(self.url.split('/')[-2:])
-            res['doi'] = doi
-            
-        return res
-
-
 
 
 class Page(object):
@@ -377,15 +333,75 @@ class searchPage(Page):
     def parse_query(self):
         # What type of query is it?
         if any(i in self._query for i in ['http','www']):
-            qtype = downloadURL(self._query)
+            qtype = downloadADS(ident=self.process_url())
         elif any(i in self._query for i in ['arxiv','arixiv']) or (self.isnum(self._query) and '.' in self._query):
             qtype = downloadArxiv(self._query)
         elif len(self._query)==19 and self.isnum(self._query[0:4]):
-            qtype = downloadADSBibcode(self._query)
+            qtype = downloadADS(bibcode=self._query)
         else:
             raise NotImplementedError
 
         return qtype.pdf() 
+
+    def process_url(self):
+        res = {}
+
+        if 'adsabs.harvard.edu' in self._query: # ADSABS
+            q = self._query.split('/')
+            if len(q[-1])==19:
+                res['bibcode'] = q[-1]
+            elif len(q[-2])==19:
+                res['bibcode'] = q[-1]
+            else:
+                res['bibcode'] = None
+        elif 'arxiv.org/' in self._query: #ARXIV
+            res['arxiv'] = self._query.split('/')[-1]
+        elif "iopscience.iop.org" in self._query: #ApJ, ApJS
+            #http://iopscience.iop.org/article/10.3847/1538-4365/227/2/22/meta
+            res['doi'] = self._query.partition('article/')[-1].replace('/meta','')
+        elif 'academic.oup.com/mnras' in self._query: #MNRAS
+            # https://academic.oup.com/mnras/article/433/2/1133/1747991
+            # Fake some headers
+            headers = {'user-agent': 'my-app/0.0.1'}
+            r=requests.get(self._query,headers=headers)
+            for i in r.text.split():
+                if 'doi.org' in i and '>' in i:
+                    break # Many matches but we want the line which has a href=url>
+            res['doi'] = i.split('>')[1].split('<')[0].split('doi.org/')[1]
+        elif 'aanda.org' in self._query: #A&A:
+            #https://www.aanda.org/articles/aa/abs/2017/07/aa30698-17/aa30698-17.html
+            #Resort to downloading webpage as the url is useless
+            data = urllib.request.urlopen(self._query)
+            html = data.read()
+            ind = html.index(b'citation_bibcode')
+            x = html[ind:ind+50].decode()
+            #bibcodes are 19 characters, but the & in A&A gets converted to %26
+            res['bibcode'] = str(x[27:27+21]).replace('%26','&')
+        elif 'nature.com' in self._query: #nature
+            #https://www.nature.com/articles/s41550-018-0442-z #plus junk after this
+            if '?' in self._query:
+                self._query = self._query[:self._query.index("?")]
+            data = urllib.request.urlopen(self._query+'.ris')
+            html = data.read().decode().split('\n')
+            for i in html:
+                if 'DO  -' in i:
+                    doi = i.split()[-1]
+                    res['doi'] = i.split()[-1]
+                    break
+        elif 'sciencemag.org' in self._query: #science
+            #http://science.sciencemag.org/content/305/5690/1582
+            data = urllib.request.urlopen(self._query)
+            html = data.read()
+            ind = html.index(b'citation_doi')
+            doi = html[ind:ind+100].decode().split('/>')[0].split('=')[-1].strip().replace('"','')
+            res['doi'] = doi
+        elif 'PhysRevLett' in self._query: #Phys Review Letter
+            #https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.116.241103
+            doi = '/'.join(self._query.split('/')[-2:])
+            res['doi'] = doi
+            
+        return res
+
 
 class pdfPage(Page):
     def __init__(self, notebook, filename, data=None):
