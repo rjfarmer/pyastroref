@@ -36,6 +36,9 @@ class MyWindow(Gtk.Window):
         self.setup_notebook()
         self.setup_grid()       
 
+        t = utils.ads_read()
+        if t is None or len(t)==0:
+            self.warn_ads_not_set()
 
     def on_click_load_options(self, button):
         win = OptionsMenu()
@@ -86,6 +89,25 @@ class MyWindow(Gtk.Window):
         self.grid.attach_next_to(self.notebook,self.search,
                              Gtk.PositionType.BOTTOM,1,1) 
 
+
+    def warn_ads_not_set(self):
+        dialog = Gtk.MessageDialog(
+            transient_for=self,
+            flags=0,
+            message_type=Gtk.MessageType.INFO,
+            buttons=Gtk.ButtonsType.OK,
+            text="ADSABS Key not set",
+        )
+        dialog.format_secondary_markup(
+            'Please visit '
+        '<a href="https://ui.adsabs.harvard.edu/user/settings/token"'
+        'title="Click here">'
+        'https://ui.adsabs.harvard.edu/user/settings/token</a>'
+        ' and set a token inside the options menu'
+        )
+        dialog.run()
+
+        dialog.destroy()
 
 class Search(object):
     def __init__(self, notebook, query):
