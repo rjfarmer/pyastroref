@@ -37,6 +37,9 @@ class MyWindow(Gtk.Window):
         self.setup_notebook()
         self.setup_grid()       
 
+        self.main_page = TreeViewFilterWindow(self.notebook)
+        self.notebook.append_page(self.main_page.grid, Gtk.Label(label='Home'))
+
         t = utils.ads_read()
         if t is None or len(t)==0:
             self.warn_ads_not_set()
@@ -52,6 +55,7 @@ class MyWindow(Gtk.Window):
             return
 
         Search(self.notebook, query)
+
 
     def setup_search_bar(self):
         self.search = Gtk.SearchEntry()
@@ -311,7 +315,7 @@ class searchPage(Page):
         else:
             raise NotImplementedError
 
-        return qtype.pdf() 
+        return qtype.pdf()
 
 
 class pdfPage(Page):
@@ -464,6 +468,76 @@ class OptionsMenu(Gtk.Window):
             utils.pdf_save(f)
             
         dialog.destroy()
+
+
+# list of tuples for each software, containing the software name, initial release, and main programming languages used
+# software_list = [
+#     ("Firefosdgfdhggfhjgjfgn  sdfs  sfstbdfhgx", 2002, "C++"),
+#     ("Eclipse", 2004, "Java"),
+#     ("Pitivi", 2004, "Python"),
+#     ("Netbeans", 1996, "Java"),
+#     ("Chrome", 2008, "C++"),
+#     ("Filezilla", 2001, "C++"),
+#     ("Bazaar", 2005, "Python"),
+#     ("Git", 2005, "C"),
+#     ("Linux Kernel", 1991, "C"),
+#     ("GCC", 1987, "C"),
+#     ("Frostwire", 2004, "Java"),
+# ]
+
+col_keys = ['title','fa','year','authors','journal','download','bibtex']
+
+
+class TreeViewFilterWindow(object):
+    def __init__(self, notebook, data=None):
+        # Setting up the self.grid in which the elements are to be positionned
+        self.grid = Gtk.Grid()
+        self.grid.set_column_homogeneous(True)
+        self.grid.set_row_homogeneous(True)
+        self.notebook = notebook
+
+        self.data = data
+        self.data = [{'title':'aaa','fa':'bbb','year':'2020',
+                    'authors':'a b c','journal':'ApJ',
+                    'download':'True','bibtex':'True',
+                    'bibcode':'2020ApJ...902L..36F'},
+                    {'title':'aaa','fa':'bbb','year':'2020',
+                    'authors':'a b c','journal':'ApJ',
+                    'download':'True','bibtex':'True',
+                    'bibcode':'2020ApJ...902L..36F'}]
+        
+
+        # Creating the ListStore model
+        self.liststore = Gtk.ListStore(*[str]*len(col_keys))
+        for paper in self.data:
+            self.liststore.append([paper[i] for i in col_keys])
+
+        # creating the treeview, making it use the filter as a model, and adding the columns
+        self.treeview = Gtk.TreeView(self.liststore)
+        for i, column_title in enumerate(
+            ["Title", "First Author", "Year","Authors","Journal","Download","Bibtex"]
+        ):
+            renderer = Gtk.CellRendererText()
+            column = Gtk.TreeViewColumn(column_title, renderer, text=i)
+            column.set_sizing(Gtk.TreeViewColumnSizing.AUTOSIZE)
+            column.set_resizable(True)
+            self.treeview.append_column(column)
+
+        # setting up the layout, putting the treeview in a scrollwindow, and the buttons in a row
+        self.scrollable_treelist = Gtk.ScrolledWindow()
+        self.scrollable_treelist.set_vexpand(True)
+        self.grid.attach(self.scrollable_treelist, 0, 0, 8, 10)
+
+        self.scrollable_treelist.add(self.treeview)
+        self.treeview.connect('row-activated' , self.button_press_event)
+
+        self.grid.show_all()
+
+    def button_press_event(self, treeview, path, view_column):
+        row = path.get_indices()[0]
+        print(self.data[row]['bibcode'])
+        Search(self.notebook, self.data[row]['bibcode'])
+
 
 def main():
     win = MyWindow()
