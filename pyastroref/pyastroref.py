@@ -25,6 +25,8 @@ EvinceDocument.init()
 
 _pages = {}
 
+_THREADS_ON=True
+
 class MyWindow(Gtk.Window):
     def __init__(self):
         self.settings = {}
@@ -125,9 +127,12 @@ class Search(object):
         def search():
             self.new_page(searchPage,query)
 
-        thread = threading.Thread(target=search)
-        thread.daemon = True
-        thread.start()
+        if _THREADS_ON:
+            thread = threading.Thread(target=search)
+            thread.daemon = True
+            thread.start()
+        else:
+            search()
 
     def new_page(self,ptype,name):
         if name in _pages:
