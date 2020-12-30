@@ -303,74 +303,15 @@ class searchPage(Page):
     def parse_query(self):
         # What type of query is it?
         if any(i in self._query for i in ['http','www']):
-            qtype = downloadADS(ident=self.process_url())
+            qtype = downloadADS(ident=utils.process_url(self._query))
         elif any(i in self._query for i in ['arxiv','arixiv']) or (self.isnum(self._query) and '.' in self._query):
             qtype = downloadArxiv(self._query)
-        elif len(self._query)==19 and self.isnum(self._query[0:4]):
+        elif len(self._query)==19 and self.isnum(self._query[0:4]): #Bibcode
             qtype = downloadADS(bibcode=self._query)
         else:
             raise NotImplementedError
 
         return qtype.pdf() 
-
-    def process_url(self):
-        res = {}
-
-        if 'adsabs.harvard.edu' in self._query: # ADSABS
-            q = self._query.split('/')
-            if len(q[-1])==19:
-                res['bibcode'] = q[-1]
-            elif len(q[-2])==19:
-                res['bibcode'] = q[-1]
-            else:
-                res['bibcode'] = None
-        elif 'arxiv.org/' in self._query: #ARXIV
-            res['arxiv'] = self._query.split('/')[-1]
-        elif "iopscience.iop.org" in self._query: #ApJ, ApJS
-            #http://iopscience.iop.org/article/10.3847/1538-4365/227/2/22/meta
-            res['doi'] = self._query.partition('article/')[-1].replace('/meta','')
-        elif 'academic.oup.com/mnras' in self._query: #MNRAS
-            # https://academic.oup.com/mnras/article/433/2/1133/1747991
-            # Fake some headers
-            headers = {'user-agent': 'my-app/0.0.1'}
-            r=requests.get(self._query,headers=headers)
-            for i in r.text.split():
-                if 'doi.org' in i and '>' in i:
-                    break # Many matches but we want the line which has a href=url>
-            res['doi'] = i.split('>')[1].split('<')[0].split('doi.org/')[1]
-        elif 'aanda.org' in self._query: #A&A:
-            #https://www.aanda.org/articles/aa/abs/2017/07/aa30698-17/aa30698-17.html
-            #Resort to downloading webpage as the url is useless
-            data = urllib.request.urlopen(self._query)
-            html = data.read()
-            ind = html.index(b'citation_bibcode')
-            x = html[ind:ind+50].decode()
-            #bibcodes are 19 characters, but the & in A&A gets converted to %26
-            res['bibcode'] = str(x[27:27+21]).replace('%26','&')
-        elif 'nature.com' in self._query: #nature
-            #https://www.nature.com/articles/s41550-018-0442-z #plus junk after this
-            if '?' in self._query:
-                self._query = self._query[:self._query.index("?")]
-            data = urllib.request.urlopen(self._query+'.ris')
-            html = data.read().decode().split('\n')
-            for i in html:
-                if 'DO  -' in i:
-                    doi = i.split()[-1]
-                    res['doi'] = i.split()[-1]
-                    break
-        elif 'sciencemag.org' in self._query: #science
-            #http://science.sciencemag.org/content/305/5690/1582
-            data = urllib.request.urlopen(self._query)
-            html = data.read()
-            ind = html.index(b'citation_doi')
-            doi = html[ind:ind+100].decode().split('/>')[0].split('=')[-1].strip().replace('"','')
-            res['doi'] = doi
-        elif 'PhysRevLett' in self._query: #Phys Review Letter
-            #https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.116.241103
-            doi = '/'.join(self._query.split('/')[-2:])
-            res['doi'] = doi
-            
-        return res
 
 
 class pdfPage(Page):
