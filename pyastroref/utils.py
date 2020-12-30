@@ -2,6 +2,14 @@
 
 import os
 import appdirs
+import tempfile
+import shutil
+import urllib
+
+import gi
+gi.require_version('EvinceDocument', '3.0')
+from gi.repository import EvinceDocument
+
 
 if 'PYASTROREF_TEST' in os.environ:
     testing = True
@@ -45,3 +53,39 @@ def orcid_save(key):
 
 def orcid_read():
     return read(loc('orcid'))
+
+
+class file_downloader(object):
+    def __init__(self,url):
+        self.url = url
+    
+    def __enter__(self):
+        self.out_file, self.filename = tempfile.mkstemp(suffix=b'')
+        try:
+            with urllib.request.urlopen(self.url) as response, open(self.filename,'wb') as f:
+                shutil.copyfileobj(response, f)
+                return self.filename
+        except:
+            return None
+
+    def __exit__(self, type, value, tb):
+        if tb is not None:
+            os.remove(self.filename)
+
+def download_file(url,filename):
+    if os.path.exists(filename):
+        return filename
+    with file_downloader(url) as f:
+        if f is None:
+            return None
+        shutil.move(f,filename)
+    if os.path.exists(filename):
+        # Test if actually a pdf:
+        try:
+            EvinceDocument.Document.factory_get_document('file://'+filename)
+        except gi.repository.GLib.Error:
+            print("Can't access ",str(filename))
+            os.remove(filename)
+            return None
+
+        return filename

@@ -115,13 +115,9 @@ class Search(object):
         self.query = query
         self.notebook = notebook
 
-        #self.new_pdf_page(query)
-        self.new_search_page(query)
+        self.new_pdf_page(query)
 
-    def new_pdf_page(self,filename):
-        self.new_page(pdfPage,os.path.join(utils.pdf_read(),self.query+'.pdf'))
-
-    def new_search_page(self, query):
+    def new_pdf_page(self, query):
         def search():
             self.new_page(searchPage,query)
 
@@ -146,36 +142,7 @@ class Search(object):
         self.notebook.set_current_page(page.page_num)  
 
 
-class downloadGeneric(object):
-
-    class file_downloader(object):
-        def __init__(self,url):
-            self.url = url
-        
-        def __enter__(self):
-            self.out_file, self.filename = tempfile.mkstemp(suffix=b'')
-            try:
-                with urllib.request.urlopen(self.url) as response, open(self.filename,'wb') as f:
-                    shutil.copyfileobj(response, f)
-                    return self.filename
-            except:
-                return None
-
-        def __exit__(self, type, value, tb):
-            if tb is not None:
-                os.remove(self.filename)
-
-    def download_file(self,url,filename):
-        if os.path.exists(filename):
-            return filename
-        with self.file_downloader(url) as f:
-            if f is None:
-                return None
-            shutil.move(f,filename)
-        if os.path.exists(filename):
-            return filename
-
-class downloadADS(downloadGeneric):
+class downloadADS(object):
     _fields = ['bibcode','title','author','year','abstract',
                         'pubdate']
     _search_url = 'https://ui.adsabs.harvard.edu/link_gateway/'
@@ -231,7 +198,7 @@ class downloadADS(downloadGeneric):
         
         for i in strs:
             url = self._search_url+str(self.bibcode)+i
-            f = self.download_file(url, output)
+            f = utils.download_file(url, output)
             # Did file download?
             if f is not None:
                 return f
@@ -239,10 +206,12 @@ class downloadADS(downloadGeneric):
     def abstract(self):
         return self.data.abstract
 
+    def name(self):
+        return str(self.first_author())+' '+ str(self.published())
 
 
 
-class downloadArxiv(downloadGeneric):
+class downloadArxiv(object):
     def __init__(self,id):
         self.id = id
         self.search_url = 'http://export.arxiv.org/api/query?search_query='+self.id
@@ -274,17 +243,20 @@ class downloadArxiv(downloadGeneric):
         if url is None:
             raise ValueError("Bad URL")
         output = os.path.join(utils.pdf_read(),self.id+'.pdf')
-        return self.download_file(url, output)
+        return utils.download_file(url, output)
 
     def abstract(self):
         return self.data['entries'][0]['summary_detail']['value'].replace('\n','')
+
+    def name(self):
+        return str(self.first_author())+' '+ str(self.published())
 
 
 class Page(object):
 
     def make_header(self):
         header = Gtk.HBox()
-        title_label = self.name()
+        title_label =  Gtk.Label(label=self.name())
         image = Gtk.Image()
         image.set_from_icon_name('window-close-symbolic', Gtk.IconSize.BUTTON)
         close_button = Gtk.Button()
@@ -318,10 +290,8 @@ class searchPage(Page):
         self._page = pdfPage(self.notebook, pdfname)
         self._page.add_page()
         self.page = self._page.page
+        self.name = self._page.name
         return self.page
-
-    def name(self):
-        return Gtk.Label(label="search: " + str(self._query))
 
     def isnum(self,num):
         try:
@@ -405,15 +375,18 @@ class searchPage(Page):
 
 class pdfPage(Page):
     def __init__(self, notebook, filename, data=None):
-        self._filename = filename
-        self.filename = 'file://'+filename
         self.data = data
-        self.doc = EvinceDocument.Document.factory_get_document(self.filename)
 
-        self.page = None
+        self.doc = None
+
+        self._filename = filename
+
+        if self._filename is not None:
+            self.filename = 'file://'+filename
+            self.doc = EvinceDocument.Document.factory_get_document(self.filename)
+
         self.notebook = notebook
         self.page_num = -1
-
 
     def add_page(self):
         self.page = Gtk.HPaned()
@@ -424,13 +397,19 @@ class pdfPage(Page):
         return self.page
 
     def show_pdf(self):
-       scroll = Gtk.ScrolledWindow()
-       view = EvinceView.View()
-       model = EvinceView.DocumentModel()
-       model.set_document(self.doc)
-       view.set_model(model)
-       scroll.add(view)
-       return scroll  
+
+        if self.doc is None:
+            scroll = Gtk.HBox()
+            label = Gtk.Label(label="Can not show file")
+            scroll.pack_start(label, True, True, 0)
+        else:
+            scroll = Gtk.ScrolledWindow()
+            view = EvinceView.View()
+            model = EvinceView.DocumentModel()
+            model.set_document(self.doc)
+            view.set_model(model)
+            scroll.add(view)
+        return scroll  
 
     def show_info(self):    
         info = Gtk.Grid()
@@ -457,23 +436,11 @@ class pdfPage(Page):
         return info 
 
     def name(self):
-        return Gtk.Label(label=os.path.basename(self.filename))
+        if self.doc is None:
+            return "Bad file"
+        else:
+            return os.path.basename(self.filename)
 
-    def arixv_num(self):
-        page = self.doc.get_page(0)
-        text = self.doc.get_text(page)
-
-        for i in text.split('\n'):
-            if 'arXiv:' in i :
-                self.arixv = i.split()[0][len('arXiv:'):]
-
-        return None
-
-    def get_details(self):
-        if self.arixv is None:
-            self.arixv_num()
-
-        
 
 
 class OptionsMenu(Gtk.Window):
