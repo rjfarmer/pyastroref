@@ -55,37 +55,21 @@ def orcid_save(key):
 def orcid_read():
     return read(loc('orcid'))
 
-
-class file_downloader(object):
-    def __init__(self,url):
-        self.url = url
-    
-    def __enter__(self):
-        self.out_file, self.filename = tempfile.mkstemp(suffix=b'')
-        try:
-            with urllib.request.urlopen(self.url) as response, open(self.filename,'wb') as f:
-                shutil.copyfileobj(response, f)
-                return self.filename
-        except:
-            return None
-
-    def __exit__(self, type, value, tb):
-        if tb is not None:
-            os.remove(self.filename)
-
 def download_file(url,filename):
     if os.path.exists(filename):
         return filename
-    with file_downloader(url) as f:
-        if f is None:
-            return None
-        shutil.move(f,filename)
+    
+    headers = {'user-agent': 'my-app/0.0.1'}
+    r = requests.get(url, allow_redirects=True,headers=headers)
+    with open(filename,'wb') as f:
+        f.write(r.content)
+    
     if os.path.exists(filename):
         # Test if actually a pdf:
         try:
             EvinceDocument.Document.factory_get_document('file://'+filename)
         except gi.repository.GLib.Error:
-            print("Can't access ",str(filename))
+            print("Not a pdf ",str(filename))
             os.remove(filename)
             return None
 

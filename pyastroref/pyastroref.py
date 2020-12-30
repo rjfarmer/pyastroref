@@ -208,6 +208,7 @@ class downloadADS(object):
         for i in strs:
             url = self._search_url+str(self.bibcode)+i
             f = utils.download_file(url, output)
+            print(url,f,output)
             # Did file download?
             if f is not None:
                 return f
@@ -311,7 +312,7 @@ class searchPage(Page):
 
     def parse_query(self):
         # What type of query is it?
-        if any(i in self._query for i in ['http','www']):
+        if any(i in self._query for i in ['https://','http://','www.']):
             qtype = downloadADS(ident=utils.process_url(self._query))
         elif any(i in self._query for i in ['arxiv','arixiv']) or (self.isnum(self._query) and '.' in self._query):
             qtype = downloadArxiv(self._query)
@@ -320,6 +321,7 @@ class searchPage(Page):
         else:
             raise NotImplementedError
 
+        print(qtype)
         return qtype.pdf()
 
 
@@ -474,22 +476,6 @@ class OptionsMenu(Gtk.Window):
             
         dialog.destroy()
 
-
-# list of tuples for each software, containing the software name, initial release, and main programming languages used
-# software_list = [
-#     ("Firefosdgfdhggfhjgjfgn  sdfs  sfstbdfhgx", 2002, "C++"),
-#     ("Eclipse", 2004, "Java"),
-#     ("Pitivi", 2004, "Python"),
-#     ("Netbeans", 1996, "Java"),
-#     ("Chrome", 2008, "C++"),
-#     ("Filezilla", 2001, "C++"),
-#     ("Bazaar", 2005, "Python"),
-#     ("Git", 2005, "C"),
-#     ("Linux Kernel", 1991, "C"),
-#     ("GCC", 1987, "C"),
-#     ("Frostwire", 2004, "Java"),
-# ]
-
 col_keys = ['title','fa','year','authors','journal','download','bibtex']
 
 
@@ -505,11 +491,11 @@ class TreeViewFilterWindow(object):
         self.data = [{'title':'aaa','fa':'bbb','year':'2020',
                     'authors':'a b c','journal':'ApJ',
                     'download':'True','bibtex':'True',
-                    'bibcode':'2020ApJ...902L..36F'},
+                    'bibcode':'2013MNRAS.433.1133F'},
                     {'title':'aaa','fa':'bbb','year':'2020',
                     'authors':'a b c','journal':'ApJ',
                     'download':'True','bibtex':'True',
-                    'bibcode':'2020ApJ...902L..36F'}]
+                    'bibcode':'2013MNRAS.433.1133F'}]
         
 
         # Creating the ListStore model
