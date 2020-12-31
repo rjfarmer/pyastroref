@@ -506,7 +506,8 @@ class TreeViewFilterWindow(object):
             self.liststore.append([paper[i] for i in col_keys])
 
         # creating the treeview and adding the columns
-        self.treeview = Gtk.TreeView(self.liststore)
+        self.treeviewsorted = Gtk.TreeModelSort(self.liststore)
+        self.treeview = Gtk.TreeView.new_with_model(self.treeviewsorted)
         for i, column_title in enumerate(self.cols):
             if column_title == 'PDF' or column_title == 'Bibtex':
                 renderer = Gtk.CellRendererPixbuf()
@@ -536,8 +537,8 @@ class TreeViewFilterWindow(object):
         self.grid.show_all()
 
     def button_press_event(self, treeview, path, view_column):
-        row = path.get_indices()[0]
-        print(self.data[row]['bibcode'])
+        cp = self.treeviewsorted.convert_path_to_child_path(path)
+        row = cp.get_indices()[0]
         Search(self.notebook, self.data[row]['bibcode'])
 
     def edited_cell(self, cell, path, new_text, col_num):
