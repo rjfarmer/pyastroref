@@ -27,7 +27,7 @@ _pages = {}
 
 _THREADS_ON=True
 
-class MyWindow(Gtk.Window):
+class MainWindow(Gtk.Window):
     def __init__(self):
         self.settings = {}
         self.pages = {}
@@ -476,10 +476,12 @@ class OptionsMenu(Gtk.Window):
             
         dialog.destroy()
 
-col_keys = ['title','fa','year','authors','journal','download','bibtex']
+col_keys = ['title','fa','year','authors','journal','pdf','bibtex']
 
 
 class TreeViewFilterWindow(object):
+    cols = ["Title", "First Author", "Year","Authors","Journal","PDF","Bibtex"]
+
     def __init__(self, notebook, data=None):
         # Setting up the self.grid in which the elements are to be positionned
         self.grid = Gtk.Grid()
@@ -490,12 +492,12 @@ class TreeViewFilterWindow(object):
         self.data = data
         self.data = [{'title':'aaa','fa':'bbb','year':'2020',
                     'authors':'a b c','journal':'ApJ',
-                    'download':'True','bibtex':'True',
+                    'pdf':'document-open','bibtex':'edit-copy',
                     'bibcode':'2013MNRAS.433.1133F'},
-                    {'title':'aaa','fa':'bbb','year':'2020',
+                    {'title':'bbb','fa':'bbb','year':'2019',
                     'authors':'a b c','journal':'ApJ',
-                    'download':'True','bibtex':'True',
-                    'bibcode':'2013MNRAS.433.1133F'}]
+                    'pdf':'document-open','bibtex':'edit-copy',
+                    'bibcode':'2017A&A...603A.118R'}]
         
 
         # Creating the ListStore model
@@ -503,20 +505,29 @@ class TreeViewFilterWindow(object):
         for paper in self.data:
             self.liststore.append([paper[i] for i in col_keys])
 
-        # creating the treeview, making it use the filter as a model, and adding the columns
+        # creating the treeview and adding the columns
         self.treeview = Gtk.TreeView(self.liststore)
-        for i, column_title in enumerate(
-            ["Title", "First Author", "Year","Authors","Journal","Download","Bibtex"]
-        ):
-            renderer = Gtk.CellRendererText()
-            column = Gtk.TreeViewColumn(column_title, renderer, text=i)
-            column.set_sizing(Gtk.TreeViewColumnSizing.AUTOSIZE)
-            column.set_resizable(True)
+        for i, column_title in enumerate(self.cols):
+            if column_title == 'PDF' or column_title == 'Bibtex':
+                renderer = Gtk.CellRendererPixbuf()
+                column = Gtk.TreeViewColumn(column_title, renderer, icon_name=i)
+            else:
+                renderer = Gtk.CellRendererText()
+                renderer.set_property('editable', True)
+                renderer.connect('edited', self.edited_cell, i)
+                column = Gtk.TreeViewColumn(column_title, renderer, text=i)
+                column.set_sizing(Gtk.TreeViewColumnSizing.AUTOSIZE)
+                column.set_resizable(True)
+                column.set_sort_column_id(i)
+                if column_title == 'Title':
+                    column.set_expand(True)
+
             self.treeview.append_column(column)
 
-        # setting up the layout, putting the treeview in a scrollwindow, and the buttons in a row
+        # setting up the layout, putting the treeview in a scrollwindow
         self.scrollable_treelist = Gtk.ScrolledWindow()
         self.scrollable_treelist.set_vexpand(True)
+        self.scrollable_treelist.set_hexpand(True)
         self.grid.attach(self.scrollable_treelist, 0, 0, 8, 10)
 
         self.scrollable_treelist.add(self.treeview)
@@ -529,9 +540,13 @@ class TreeViewFilterWindow(object):
         print(self.data[row]['bibcode'])
         Search(self.notebook, self.data[row]['bibcode'])
 
+    def edited_cell(self, cell, path, new_text, col_num):
+        self.liststore[path][col_num] = new_text
+        # TODO: Propgate changs back into database
+
 
 def main():
-    win = MyWindow()
+    win = MainWindow()
     win.connect("destroy", Gtk.main_quit)
     win.set_hide_titlebar_when_maximized(False)
     win.maximize()
