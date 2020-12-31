@@ -55,6 +55,10 @@ def orcid_save(key):
 def orcid_read():
     return read(loc('orcid'))
 
+def db_read():
+    return read(loc('pdf_store')) # Store db in same folder as pdf's
+
+
 def download_file(url,filename):
     if os.path.exists(filename):
         return filename

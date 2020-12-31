@@ -11,6 +11,7 @@ import requests
 import ads
 
 from . import utils
+from . import database
 
 import gi
 gi.require_version("Gtk", "3.0")
@@ -45,6 +46,9 @@ class MainWindow(Gtk.Window):
         t = utils.ads_read()
         if t is None or len(t)==0:
             self.warn_ads_not_set()
+
+        # Make empty databse if not allready existing
+        db = database.database()
 
     def on_click_load_options(self, button):
         win = OptionsMenu()
@@ -152,8 +156,8 @@ class Search(object):
 
 
 class downloadADS(object):
-    _fields = ['bibcode','title','author','year','abstract',
-                        'pubdate']
+    _fields = ['bibcode','title','author','year','abstract','year',
+                        'pubdate','journal','alternate_bibcode']
     _search_url = 'https://ui.adsabs.harvard.edu/link_gateway/'
 
     def __init__(self,bibcode=None,ident=None):
@@ -166,10 +170,12 @@ class downloadADS(object):
             self.get_data()
         if self.ident is not None:
             self.get_bibcode()
+
+        self.add_to_db()
     
     def get_data(self):
         self.data = list(ads.SearchQuery(bibcode=self.bibcode,
-                    fl=self._fields))[0]
+                    fl=self._fields,rows=1))[0]
 
     def get_bibcode(self):
         if 'bibcode' in self.ident:
@@ -178,25 +184,41 @@ class downloadADS(object):
             return
 
         if 'doi' in self.ident:
-            self.data = list(ads.SearchQuery(doi=self.ident['doi'],fl=self._fields))[0]
+            self.data = list(ads.SearchQuery(doi=self.ident['doi'],fl=self._fields,rows=1))[0]
         elif 'arxiv' in self.ident:
-            self.data = list(ads.SearchQuery(q=self.ident['arxiv'],fl=self._fields))[0]
+            self.data = list(ads.SearchQuery(q=self.ident['arxiv'],fl=self._fields,rows=1))[0]
         else:
             raise ValueError("Didnt match ident, got",self.ident)
 
         self.bibcode = self.data.bibcode
 
+    @property
     def title(self):
-        return self.data.title
+        return self.data.title[0]
 
+    @property
     def authors(self):
         return self.data.author
 
+    @property
     def first_author(self):
         return self.data.author[0]
 
-    def published(self):
+    @property
+    def pubdate(self):
         return self.data.pubdate
+
+    @property
+    def journal(self):
+        return self.data.journal
+
+    @property
+    def filename(self):
+        return self.bibcode+'.pdf'
+
+    @property
+    def year(self):
+        return self.data.year
 
     def pdf(self):
         strs = ['/PUB_PDF','/EPRINT_PDF','/ADS_PDF']
@@ -208,16 +230,29 @@ class downloadADS(object):
         for i in strs:
             url = self._search_url+str(self.bibcode)+i
             f = utils.download_file(url, output)
-            print(url,f,output)
             # Did file download?
             if f is not None:
                 return f
 
+    @property
     def abstract(self):
         return self.data.abstract
 
     def name(self):
         return str(self.first_author())+' '+ str(self.published())
+
+
+    def add_to_db(self):
+        db = database.database()
+        fields = db.fields()
+        data = {}
+        for i in fields:
+            try:
+                data[i] = str(getattr(self, i)) # Will need to call eval(x) to unpack
+            except AttributeError:
+                data[i] = ''
+        print(data)
+        db.add(data)
 
 
 
