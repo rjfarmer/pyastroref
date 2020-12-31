@@ -87,7 +87,7 @@ def process_url(url):
         if len(q[-1])==19:
             res['bibcode'] = q[-1]
         elif len(q[-2])==19:
-            res['bibcode'] = q[-1]
+            res['bibcode'] = q[-2]
         else:
             res['bibcode'] = None
     elif 'arxiv.org/' in url: #ARXIV
