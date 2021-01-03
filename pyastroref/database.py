@@ -74,10 +74,7 @@ class database(object):
     def create(self):
         cursor = self.conn.cursor()
         if not self.iftablexists():
-            cursor.execute('''
-                    CREATE TABLE papers (bibcode, arxiv, title, abstract, first_author, authors, year, filename, pubdate, journal, bibtex)
-                    ''',
-                    )
+            cursor.execute('CREATE TABLE papers ('+','.join(_fields)+')',)
             self.conn.commit()
 
     def iftablexists(self):

@@ -120,7 +120,6 @@ class MainWindow(Gtk.Window):
         self.button_rss = Gtk.Button()
 
         icon_filename = os.path.join(os.path.dirname(__file__),"../","icons","Generic_Feed-icon.svg")
-        print(icon_filename)
         self.button_rss.connect("clicked", self.on_click_load_rssfeeds)
 
         size = Gtk.IconSize.lookup(Gtk.IconSize.BUTTON)
@@ -223,9 +222,10 @@ class Search(object):
         self.notebook.set_current_page(page.page_num)  
 
 
+
 class downloadADS(object):
     _fields = ['bibcode','title','author','year','abstract','year',
-                        'pubdate','journal','alternate_bibcode']
+                        'pubdate','bibstem','alternate_bibcode']
     _search_url = 'https://ui.adsabs.harvard.edu/link_gateway/'
 
     def __init__(self,bibcode=None,ident=None):
@@ -266,7 +266,7 @@ class downloadADS(object):
 
     @property
     def authors(self):
-        return self.data.author
+        return  '; '.join(self.data.author)
 
     @property
     def first_author(self):
@@ -278,7 +278,7 @@ class downloadADS(object):
 
     @property
     def journal(self):
-        return self.data.journal
+        return self.data.bibstem[0]
 
     @property
     def filename(self):
@@ -316,10 +316,9 @@ class downloadADS(object):
         data = {}
         for i in fields:
             try:
-                data[i] = str(getattr(self, i)) # Will need to call eval(x) to unpack
+                data[i] = str(getattr(self, i))
             except AttributeError:
                 data[i] = ''
-        print(data)
         db.add(data)
 
 
@@ -333,17 +332,29 @@ class downloadArxiv(object):
     def get_data(self):
         self.data = feedparser.parse(self.search_url)
 
+    @property
     def title(self):
         return self.data['entries'][0]['title'].replace('\n','')
 
+    @property
     def authors(self):
-        return list([i['name'] for i in self.data['entries'][0]['authors']])
+        return '; '.join([i['name'] for i in self.data['entries'][0]['authors']])
 
+    @property
     def first_author(self):
         return self.data['entries'][0]['authors'][0]['name']
 
-    def published(self):
+    @property
+    def pubdate(self):
         return self.data['entries'][0]['published']
+
+    @property
+    def journal(self):
+        return 'Arxiv'
+
+    @property
+    def year(self):
+        return self.pubdate()[0:4]
 
     def pdf_url(self):
         for i in self.data['entries'][0]['links']:
@@ -358,11 +369,24 @@ class downloadArxiv(object):
         output = os.path.join(utils.pdf_read(),self.id+'.pdf')
         return utils.download_file(url, output)
 
+    @property
     def abstract(self):
         return self.data['entries'][0]['summary_detail']['value'].replace('\n','')
 
     def name(self):
         return str(self.first_author())+' '+ str(self.published())
+
+
+    def add_to_db(self):
+        db = database.database()
+        fields = db.fields()
+        data = {}
+        for i in fields:
+            try:
+                data[i] = str(getattr(self, i))
+            except AttributeError:
+                data[i] = ''
+        db.add(data)
 
 
 class Page(object):
@@ -431,7 +455,9 @@ class searchPage(Page):
         else:
             raise NotImplementedError
 
-        print(qtype)
+        # Add to database
+        qtype.add_to_db()
+
         return qtype.pdf()
 
 
@@ -586,11 +612,9 @@ class OptionsMenu(Gtk.Window):
             
         dialog.destroy()
 
-col_keys = ['title','fa','year','authors','journal','pdf','bibtex']
 
-
-class TreeViewFilterWindow(object):
-    cols = ["Title", "First Author", "Year","Authors","Journal","PDF","Bibtex"]
+class displayResults(object):
+    cols = ["Title", "First Author", "Year", "Authors", "Journal", "PDF", "Bibtex"]
 
     def __init__(self, notebook, data=None):
         # Setting up the self.grid in which the elements are to be positionned
@@ -600,20 +624,33 @@ class TreeViewFilterWindow(object):
         self.notebook = notebook
 
         self.data = data
-        self.data = [{'title':'aaa','fa':'bbb','year':'2020',
-                    'authors':'a b c','journal':'ApJ',
-                    'pdf':'document-open','bibtex':'edit-copy',
-                    'bibcode':'2013MNRAS.433.1133F'},
-                    {'title':'bbb','fa':'bbb','year':'2019',
-                    'authors':'a b c','journal':'ApJ',
-                    'pdf':'document-open','bibtex':'edit-copy',
-                    'bibcode':'2017A&A...603A.118R'}]
-        
 
         # Creating the ListStore model
-        self.liststore = Gtk.ListStore(*[str]*len(col_keys))
+        self.liststore = Gtk.ListStore(*[str]*len(self.cols))
         for paper in self.data:
-            self.liststore.append([paper[i] for i in col_keys])
+
+            pdficon = 'go-down'
+            if os.path.exists(os.path.join(utils.pdf_read(),paper['filename'])):
+                pdficon = 'x-office-document'
+
+
+            authors = paper['authors'].split(';')[1:]
+            if len(authors) > 5:
+                authors = authors[0:5]
+                authors.append('et al')
+            authors = '; '.join([i.strip() for i in authors])
+
+            self.liststore.append([
+                paper['title'],
+                paper['first_author'],
+                paper['year'],
+                authors,
+                paper['journal'],
+                pdficon,
+                'edit-copy'
+            ])
+
+
 
         # creating the treeview and adding the columns
         self.treeviewsorted = Gtk.TreeModelSort(self.liststore)
@@ -622,8 +659,11 @@ class TreeViewFilterWindow(object):
             if column_title == 'PDF' or column_title == 'Bibtex':
                 renderer = Gtk.CellRendererPixbuf()
                 column = Gtk.TreeViewColumn(column_title, renderer, icon_name=i)
+                column.set_expand(False)
             else:
                 renderer = Gtk.CellRendererText()
+                renderer.props.wrap_width = 100
+                renderer.props.wrap_mode = Gtk.WrapMode.WORD
                 column = Gtk.TreeViewColumn(column_title, renderer, text=i)
                 column.set_sizing(Gtk.TreeViewColumnSizing.AUTOSIZE)
                 column.set_resizable(True)
