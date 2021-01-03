@@ -46,7 +46,7 @@ class MainWindow(Gtk.Window):
         self.warn_ads_not_set()
 
         # Make empty databse if not allready existing
-        db = database.database()
+        database.database()
 
     def on_click_load_options(self, button):
         win = OptionsMenu()
