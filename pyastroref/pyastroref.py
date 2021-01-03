@@ -129,7 +129,7 @@ class Search(object):
 
     def new_pdf_page(self, query):
         def search():
-            self.new_page(searchPage,query)
+            GLib.idle_add(self.new_page,searchPage,query)
 
         if _THREADS_ON:
             thread = threading.Thread(target=search)
