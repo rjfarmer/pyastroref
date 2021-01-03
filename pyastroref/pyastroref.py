@@ -43,9 +43,7 @@ class MainWindow(Gtk.Window):
         self.main_page = TreeViewFilterWindow(self.notebook)
         self.notebook.append_page(self.main_page.grid, Gtk.Label(label='Home'))
 
-        t = utils.ads_read()
-        if t is None or len(t)==0:
-            self.warn_ads_not_set()
+        self.warn_ads_not_set()
 
         # Make empty databse if not allready existing
         db = database.database()
@@ -102,23 +100,26 @@ class MainWindow(Gtk.Window):
 
 
     def warn_ads_not_set(self):
-        dialog = Gtk.MessageDialog(
-            transient_for=self,
-            flags=0,
-            message_type=Gtk.MessageType.INFO,
-            buttons=Gtk.ButtonsType.OK,
-            text="ADSABS Key not set",
-        )
-        dialog.format_secondary_markup(
-            'Please visit '
-        '<a href="https://ui.adsabs.harvard.edu/user/settings/token"'
-        'title="Click here">'
-        'https://ui.adsabs.harvard.edu/user/settings/token</a>'
-        ' and set a token inside the options menu'
-        )
-        dialog.run()
 
-        dialog.destroy()
+        t = utils.ads_read()
+        if t is None or len(t)==0:
+            dialog = Gtk.MessageDialog(
+                transient_for=self,
+                flags=0,
+                message_type=Gtk.MessageType.INFO,
+                buttons=Gtk.ButtonsType.OK,
+                text="ADSABS Key not set",
+            )
+            dialog.format_secondary_markup(
+                'Please visit '
+            '<a href="https://ui.adsabs.harvard.edu/user/settings/token"'
+            'title="Click here">'
+            'https://ui.adsabs.harvard.edu/user/settings/token</a>'
+            ' and set a token inside the options menu'
+            )
+            dialog.run()
+
+            dialog.destroy()
 
 class Search(object):
     def __init__(self, notebook, query):
