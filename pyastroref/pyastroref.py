@@ -307,7 +307,7 @@ class downloadADS(object):
         return self.data.abstract
 
     def name(self):
-        return str(self.first_author())+' '+ str(self.published())
+        return str(self.first_author())+' '+ str(self.year())
 
 
     def add_to_db(self):
