@@ -17,7 +17,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version('EvinceDocument', '3.0')
 gi.require_version('EvinceView', '3.0')
-from gi.repository import GLib, Gtk, GObject, Gio
+from gi.repository import GLib, Gtk, GObject, Gio, GdkPixbuf
 from gi.repository import EvinceDocument
 from gi.repository import EvinceView
 
@@ -93,11 +93,8 @@ class MainWindow(Gtk.Window):
 
 
     def setup_headerbar(self):
-        self.button_opt = Gtk.Button()
-        self.button_opt.connect("clicked", self.on_click_load_options)
-        image = Gtk.Image()
-        image.set_from_icon_name('open-menu-symbolic', Gtk.IconSize.BUTTON)
-        self.button_opt.set_image(image)
+        self.options_menu()
+        self.rssfeeds()
 
         hb = Gtk.HeaderBar()
         hb.set_show_close_button(True)
@@ -105,6 +102,33 @@ class MainWindow(Gtk.Window):
         self.set_titlebar(hb)
 
         hb.pack_start(self.button_opt)
+        hb.pack_start(self.button_rss)
+
+
+    def rssfeeds(self):
+        self.button_rss = Gtk.Button()
+
+        icon_filename = os.path.join(os.path.dirname(__file__),"../","icons","Feed-icon.png")
+        print(icon_filename)
+        self.button_rss.connect("clicked", self.on_click_load_rssfeeds)
+        pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(icon_filename,16,16)
+
+        image = Gtk.Image()
+        image.set_from_pixbuf(pixbuf)
+        self.button_rss.set_image(image)
+
+
+    def on_click_load_rssfeeds(self, button):
+        win = OptionsMenu()
+        win.show_all()
+
+
+    def options_menu(self):
+        self.button_opt = Gtk.Button()
+        self.button_opt.connect("clicked", self.on_click_load_options)
+        image = Gtk.Image()
+        image.set_from_icon_name('open-menu-symbolic', Gtk.IconSize.BUTTON)
+        self.button_opt.set_image(image)
 
     def setup_notebook(self):
         self.notebook = Gtk.Notebook()

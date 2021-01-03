@@ -4,3 +4,4 @@ include COPYING.txt
 include LICENSE
 include setup.py
 recursive-include pyastroref *.py
+recursive-include icons *.png

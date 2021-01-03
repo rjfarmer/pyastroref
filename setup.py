@@ -12,6 +12,7 @@ setup(name='pyAstroRef',
       url='https://github.com/rjfarmer/pyAstroRef',
       packages=find_packages(),
       scripts=["bin/pyastroref"],
+      data_files=[('icons',['icons/Feed-icon.png'])],
       classifiers=[
 			"Development Status :: 1 - Planning",
 			"Intended Audience :: Science/Research",
