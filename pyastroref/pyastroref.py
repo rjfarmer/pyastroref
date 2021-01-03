@@ -118,7 +118,7 @@ class MainWindow(Gtk.Window):
     def rssfeeds(self):
         self.button_rss = Gtk.Button()
 
-        icon_filename = os.path.join(os.path.dirname(__file__),"../","icons","Feed-icon.png")
+        icon_filename = os.path.join(os.path.dirname(__file__),"../","icons","Generic_Feed-icon.svg")
         print(icon_filename)
         self.button_rss.connect("clicked", self.on_click_load_rssfeeds)
 
