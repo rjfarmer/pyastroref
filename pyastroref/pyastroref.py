@@ -25,6 +25,7 @@ from gi.repository import EvinceView
 EvinceDocument.init()
 
 _pages = {}
+_settings = {}
 
 _THREADS_ON=True
 
@@ -97,7 +98,7 @@ class MainWindow(Gtk.Window):
 
 
     def on_search_loc_change(self, combo):
-       print(combo.get_active_text())
+       _settings['search_source'] = combo.get_active_text()
 
 
     def setup_headerbar(self):
@@ -416,9 +417,16 @@ class searchPage(Page):
         # What type of query is it?
         if any(i in self._query for i in ['https://','http://','www.']):
             qtype = downloadADS(ident=utils.process_url(self._query))
-        elif any(i in self._query for i in ['arxiv','arixiv']) or (self.isnum(self._query) and '.' in self._query):
+        elif (
+                any(i in self._query for i in ['arxiv','arixiv']) or 
+                (self.isnum(self._query) and '.' in self._query) or
+                _settings['search_source']=='Arxiv'
+            ):
             qtype = downloadArxiv(self._query)
-        elif len(self._query)==19 and self.isnum(self._query[0:4]): #Bibcode
+        elif (
+                len(self._query)==19 and self.isnum(self._query[0:4]) or 
+                _settings['search_source']=='ADSABS'
+            ): #Bibcode
             qtype = downloadADS(bibcode=self._query)
         else:
             raise NotImplementedError
