@@ -550,8 +550,6 @@ class TreeViewFilterWindow(object):
                 column = Gtk.TreeViewColumn(column_title, renderer, icon_name=i)
             else:
                 renderer = Gtk.CellRendererText()
-                renderer.set_property('editable', True)
-                renderer.connect('edited', self.edited_cell, i)
                 column = Gtk.TreeViewColumn(column_title, renderer, text=i)
                 column.set_sizing(Gtk.TreeViewColumnSizing.AUTOSIZE)
                 column.set_resizable(True)
@@ -577,9 +575,6 @@ class TreeViewFilterWindow(object):
         row = cp.get_indices()[0]
         Search(self.notebook, self.data[row]['bibcode'])
 
-    def edited_cell(self, cell, path, new_text, col_num):
-        self.liststore[path][col_num] = new_text
-        # TODO: Propgate changs back into database
 
 
 def main():
