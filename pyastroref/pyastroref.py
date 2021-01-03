@@ -38,6 +38,7 @@ class MainWindow(Gtk.Window):
         self.setup_headerbar()
         self.setup_search_bar()
         self.setup_search_loc()
+
         self.setup_notebook()
         self.setup_grid()       
 
@@ -86,6 +87,13 @@ class MainWindow(Gtk.Window):
         combo.set_active(0)
         self.search_box.pack_start(combo, False, False, True)
 
+    def setup_bibtex_import(self):
+        self.button_bibtex = Gtk.Button()
+        self.button_bibtex.connect("clicked", self.on_click_load_options)
+        image = Gtk.Image()
+        image.set_from_icon_name('list-add', Gtk.IconSize.BUTTON)
+        self.button_bibtex.set_image(image)
+
 
 
     def on_search_loc_change(self, combo):
@@ -95,6 +103,7 @@ class MainWindow(Gtk.Window):
     def setup_headerbar(self):
         self.options_menu()
         self.rssfeeds()
+        self.setup_bibtex_import()
 
         hb = Gtk.HeaderBar()
         hb.set_show_close_button(True)
@@ -103,6 +112,7 @@ class MainWindow(Gtk.Window):
 
         hb.pack_start(self.button_opt)
         hb.pack_start(self.button_rss)
+        hb.pack_start(self.button_bibtex)
 
 
     def rssfeeds(self):
