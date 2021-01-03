@@ -121,7 +121,9 @@ class MainWindow(Gtk.Window):
         icon_filename = os.path.join(os.path.dirname(__file__),"../","icons","Feed-icon.png")
         print(icon_filename)
         self.button_rss.connect("clicked", self.on_click_load_rssfeeds)
-        pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(icon_filename,16,16)
+
+        size = Gtk.IconSize.lookup(Gtk.IconSize.BUTTON)
+        pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(icon_filename,size.width,size.height)
 
         image = Gtk.Image()
         image.set_from_pixbuf(pixbuf)
