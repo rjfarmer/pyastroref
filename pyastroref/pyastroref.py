@@ -37,6 +37,7 @@ class MainWindow(Gtk.Window):
 
         self.setup_headerbar()
         self.setup_search_bar()
+        self.setup_search_loc()
         self.setup_notebook()
         self.setup_grid()       
 
@@ -70,6 +71,27 @@ class MainWindow(Gtk.Window):
         self.set_default(self.search)
         self.search.set_hexpand(True)
 
+    def setup_search_loc(self):
+        search_locs = ['Local','ADSABS','Arxiv']
+
+        self.search_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+
+
+        combo = Gtk.ComboBoxText()
+        combo.set_entry_text_column(0)
+        combo.connect('changed', self.on_search_loc_change)
+        for i in search_locs:
+            combo.append_text(i)
+        
+        combo.set_active(0)
+        self.search_box.pack_start(combo, False, False, True)
+
+
+
+    def on_search_loc_change(self, combo):
+       print(combo.get_active_text())
+
+
     def setup_headerbar(self):
         self.button_opt = Gtk.Button()
         self.button_opt.connect("clicked", self.on_click_load_options)
@@ -92,11 +114,19 @@ class MainWindow(Gtk.Window):
         
     def setup_grid(self):
         self.grid = Gtk.Grid()
+        self.grid.set_orientation(Gtk.Orientation.VERTICAL)
+
         self.add(self.grid)
 
         self.grid.add(self.search)
-        self.grid.attach_next_to(self.notebook,self.search,
-                             Gtk.PositionType.BOTTOM,1,1) 
+
+        self.grid.attach_next_to(self.search_box,self.search,
+                                Gtk.PositionType.LEFT,1,1)
+
+        self.grid.attach_next_to(self.notebook,self.search_box,
+                             Gtk.PositionType.BOTTOM,2,1) 
+        #self.grid.add(self.notebook)
+
 
 
     def warn_ads_not_set(self):
