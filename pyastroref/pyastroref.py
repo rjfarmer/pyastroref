@@ -696,6 +696,7 @@ class displayResults(object):
         # creating the treeview and adding the columns
         self.treeviewsorted = Gtk.TreeModelSort(self.liststore)
         self.treeview = Gtk.TreeView.new_with_model(self.treeviewsorted)
+        self.treeview.set_has_tooltip(True)
         for i, column_title in enumerate(self.cols):
             if column_title == 'PDF' or column_title == 'Bibtex':
                 renderer = Gtk.CellRendererPixbuf()
@@ -714,6 +715,7 @@ class displayResults(object):
 
             self.treeview.append_column(column)
 
+
         # setting up the layout, putting the treeview in a scrollwindow
         self.scrollable_treelist = Gtk.ScrolledWindow()
         self.scrollable_treelist.set_vexpand(True)
@@ -721,6 +723,7 @@ class displayResults(object):
 
         self.scrollable_treelist.add(self.treeview)
         self.treeview.connect('row-activated' , self.button_press_event)
+        self.treeview.connect('query-tooltip' , self.tooltip)
 
     def button_press_event(self, treeview, path, view_column):
         cp = self.treeviewsorted.convert_path_to_child_path(path)
@@ -735,6 +738,15 @@ class displayResults(object):
     def page(self):
         return self.scrollable_treelist
 
+    def tooltip(self, widget, x, y, keyboard, tooltip):
+        path = self.treeview.get_path_at_pos(x,y)[0]
+        if path is None:
+            return False
+        cp = self.treeviewsorted.convert_path_to_child_path(path)
+        row = cp.get_indices()[0] 
+        tooltip.set_text(self.data[row]['abstract'])
+        self.treeview.set_tooltip_row(tooltip, path)
+        return True
 
 def main():
     win = MainWindow()
