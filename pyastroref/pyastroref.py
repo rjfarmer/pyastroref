@@ -31,6 +31,7 @@ _THREADS_ON=True
 
 class MainWindow(Gtk.Window):
     def __init__(self):
+        self._init = False
         self.settings = {}
         self.pages = {}
 
@@ -43,13 +44,14 @@ class MainWindow(Gtk.Window):
         self.setup_notebook()
         self.setup_grid()       
 
-        self.main_page = TreeViewFilterWindow(self.notebook)
-        self.notebook.append_page(self.main_page.grid, Gtk.Label(label='Home'))
+        # Make empty databse if not allready existing
+        self.db = database.database()
+
+        self.make_main_page()
 
         self.warn_ads_not_set()
+        self._init = True
 
-        # Make empty databse if not allready existing
-        database.database()
 
     def on_click_load_options(self, button):
         win = OptionsMenu()
@@ -62,6 +64,12 @@ class MainWindow(Gtk.Window):
             return
 
         Search(self.notebook, query)
+
+    def make_main_page(self):
+        self.main_page = mainPage(self.notebook, data = self.db.get_all())
+        self.notebook.prepend_page(self.main_page.page(), Gtk.Label(label='Home'))
+        self.notebook.set_tab_reorderable(self.main_page.page(), False)
+        self.notebook.connect('page-reordered', self.on_reorder)
 
 
     def setup_search_bar(self):
@@ -147,6 +155,9 @@ class MainWindow(Gtk.Window):
         self.notebook.set_hexpand(True)
         self.notebook.set_vexpand(True)
         self.notebook.set_tab_pos(Gtk.PositionType.LEFT)
+
+        self.notebook.connect('switch-page', self.refresh_notebook)
+
         
     def setup_grid(self):
         self.grid = Gtk.Grid()
@@ -186,6 +197,16 @@ class MainWindow(Gtk.Window):
             dialog.run()
 
             dialog.destroy()
+
+    def refresh_notebook(self, notebook, page, page_num):
+        if page_num == 0 and self._init:
+            self.main_page.refresh(self.db.get_all())
+
+
+    def on_reorder(self, notebook, child, number):
+        if number == 0:
+            notebook.reorder_child(self.main_page.page(), 0)
+
 
 class Search(object):
     def __init__(self, notebook, query):
@@ -416,7 +437,7 @@ class Page(object):
 
 class searchPage(Page):
     def __init__(self, notebook, query):
-        self._query = query
+        self._query = query.strip()
 
         self.page = None
         self.notebook = notebook
@@ -612,21 +633,42 @@ class OptionsMenu(Gtk.Window):
             
         dialog.destroy()
 
+class mainPage(object):
+    def __init__(self, notebook, data):
+        # Setting up the self.grid in which the elements are to be positionned
+        self.grid = Gtk.Grid()
+        self.grid.set_column_homogeneous(True)
+        self.grid.set_row_homogeneous(True)
+        self.data = data
+
+        self.notebook = notebook
+        self.results = displayResults(self.notebook, self.data)
+        self.grid.attach(self.results.page(), 0, 0, 8, 10)
+        self.grid.show_all()
+
+    def refresh(self, data):
+        self.data = data
+        self.results.refresh(self.data)
+        self.grid.show_all()
+
+    def page(self):
+        return self.grid
+
 
 class displayResults(object):
     cols = ["Title", "First Author", "Year", "Authors", "Journal", "PDF", "Bibtex"]
 
     def __init__(self, notebook, data=None):
-        # Setting up the self.grid in which the elements are to be positionned
-        self.grid = Gtk.Grid()
-        self.grid.set_column_homogeneous(True)
-        self.grid.set_row_homogeneous(True)
         self.notebook = notebook
 
         self.data = data
-
-        # Creating the ListStore model
         self.liststore = Gtk.ListStore(*[str]*len(self.cols))
+        self.make_liststore()
+        self.make_treeview()
+
+
+    def make_liststore(self):
+        # Creating the ListStore model
         for paper in self.data:
 
             pdficon = 'go-down'
@@ -650,8 +692,7 @@ class displayResults(object):
                 'edit-copy'
             ])
 
-
-
+    def make_treeview(self):
         # creating the treeview and adding the columns
         self.treeviewsorted = Gtk.TreeModelSort(self.liststore)
         self.treeview = Gtk.TreeView.new_with_model(self.treeviewsorted)
@@ -677,18 +718,22 @@ class displayResults(object):
         self.scrollable_treelist = Gtk.ScrolledWindow()
         self.scrollable_treelist.set_vexpand(True)
         self.scrollable_treelist.set_hexpand(True)
-        self.grid.attach(self.scrollable_treelist, 0, 0, 8, 10)
 
         self.scrollable_treelist.add(self.treeview)
         self.treeview.connect('row-activated' , self.button_press_event)
-
-        self.grid.show_all()
 
     def button_press_event(self, treeview, path, view_column):
         cp = self.treeviewsorted.convert_path_to_child_path(path)
         row = cp.get_indices()[0]
         Search(self.notebook, self.data[row]['bibcode'])
 
+    def refresh(self, data):
+        self.data = data
+        self.liststore.clear()
+        self.make_liststore()
+
+    def page(self):
+        return self.scrollable_treelist
 
 
 def main():
