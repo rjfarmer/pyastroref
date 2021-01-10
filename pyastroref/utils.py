@@ -4,7 +4,6 @@ import os
 import appdirs
 import tempfile
 import shutil
-import urllib
 import requests
 
 import gi
@@ -81,6 +80,7 @@ def download_file(url,filename):
 
 def process_url(url):
     res = {}
+    headers = {'user-agent': 'my-app/0.0.1'}
 
     if 'adsabs.harvard.edu' in url: # ADSABS
         q = url.split('/')
@@ -97,8 +97,6 @@ def process_url(url):
         res['doi'] = url.partition('article/')[-1].replace('/meta','')
     elif 'academic.oup.com/mnras' in url: #MNRAS
         # https://academic.oup.com/mnras/article/433/2/1133/1747991
-        # Fake some headers
-        headers = {'user-agent': 'my-app/0.0.1'}
         r=requests.get(url,headers=headers)
         for i in r.text.split():
             if 'doi.org' in i and '>' in i:
@@ -107,30 +105,27 @@ def process_url(url):
     elif 'aanda.org' in url: #A&A:
         #https://www.aanda.org/articles/aa/abs/2017/07/aa30698-17/aa30698-17.html
         #Resort to downloading webpage as the url is useless
-        data = urllib.request.urlopen(url)
-        html = data.read()
-        ind = html.index(b'citation_bibcode')
-        x = html[ind:ind+50].decode()
-        #bibcodes are 19 characters, but the & in A&A gets converted to %26
-        res['bibcode'] = str(x[27:27+21]).replace('%26','&')
+        r=requests.get(url,headers=headers)
+        for line in r.text.split('>'):
+            if 'citation_bibcode' in line:
+                #bibcodes are 19 characters, but the & in A&A gets converted to %26
+                res['bibcode'] = line.split('=')[-1].replace('%26','&')
+                break
     elif 'nature.com' in url: #nature
         #https://www.nature.com/articles/s41550-018-0442-z #plus junk after this
         if '?' in url:
             url = url[:url.index("?")]
-        data = urllib.request.urlopen(url+'.ris')
-        html = data.read().decode().split('\n')
-        for i in html:
-            if 'DO  -' in i:
-                doi = i.split()[-1]
-                res['doi'] = i.split()[-1]
+        r=requests.get(url+'.ris',headers=headers)
+        for i in r.text.split():
+            if 'doi.org' in i:
+                res['doi'] = '/'.join(i.split('/')[-2:])
                 break
     elif 'sciencemag.org' in url: #science
         #http://science.sciencemag.org/content/305/5690/1582
-        data = urllib.request.urlopen(url)
-        html = data.read()
-        ind = html.index(b'citation_doi')
-        doi = html[ind:ind+100].decode().split('/>')[0].split('=')[-1].strip().replace('"','')
-        res['doi'] = doi
+        r=requests.get(url,headers=headers)
+        for line in r.text.split('>'):
+            if 'meta name="citation_doi"' in line:
+                res['doi'] = line.split('=')[-1].replace('"','').removesuffix('/').strip()
     elif 'PhysRevLett' in url: #Phys Review Letter
         #https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.116.241103
         doi = '/'.join(url.split('/')[-2:])
