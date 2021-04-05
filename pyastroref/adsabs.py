@@ -2,158 +2,673 @@
 
 import os
 import re
-import urllib
-import utils
-
-if utils.testing:
-    import ads.sandbox as ads
-else:
-    import ads
-
-
-_fl_short =  ['bibcode','title','author','year']
-_fl_full =   ['bibcode','title','author','year','abstract','reference',
-                'citation','keyword','doi','pub','orcid_user',
-                'page','identifier']
-_fl_bibtex = ['bibcode','bibtex']
-_year_start = '0000'
-_year_end = '9999'
-
-search_syntax = ["abs:","ack:","aff:","abstract:","alternate_bibcode:",
-                "alternate_title:","arXiv:","arxiv_class:","author:",
-                "bibcode:","bibgroup:","bibstem:","body:","copyright:",
-                "data:","database:","pubtype:","doi:","full:","grant:",
-                "identifier:","issue:","keyword:","lang:","object:",
-                "orcid:","orcid_pub:","orcid_id:","orcid_other:",
-                "page:","property:","read_count:","title:","vizier:",
-                "volume:","year:"]
+import requests
+from pathlib import Path
+import ads
+import filetype
+import bibtexparser
+from bibtexparser.bparser import BibTexParser
+import feedparser
 
 
-# Doi prefix https://gist.github.com/hubgit/5974663
+# Where to store ADS dev key
+_TOKEN_FILE = os.path.join(Path.home(),'.ads','dev_key')
+
+# Where to store users ORCID key
+_ORCID_FILE = os.path.join(Path.home(),'.ads','orcid')
+
+_base_url = 'https://api.adsabs.harvard.edu/v1/biblib'
+_urls = {
+    'base' :  _base_url,
+    'libraries' : _base_url+'/libraries',
+    'documents' :_base_url+'/documents',
+    'permissions' :_base_url+'/permissionss',
+    'transfer' :_base_url+'/transfer',
+    'search': 'https://api.adsabs.harvard.edu/v1/search',
+    'pdfs': 'https://ui.adsabs.harvard.edu/link_gateway/',
+    'metrics': 'https://api.adsabs.harvard.edu/v1/metrics',
+    'bibtex' : 'https://api.adsabs.harvard.edu/v1/export/bibtex'
+}
+
+# Default ADS search fields
+_fields = ['bibcode','title','author','year','abstract','year',
+            'pubdate','bibstem','alternate_bibcode','citation_count',
+            ]
+
+# Handles setting the ADS dev token during a request call
+# Use as requests.get(url,auth=_BearerAuth(ADS_TOKEN)
+class _BearerAuth(requests.auth.AuthBase):
+    def __init__(self, token):
+        self.token = token
+    def __call__(self, r):
+        r.headers["authorization"] = "Bearer " + str(self.token)
+        return r
+
+# Just makes sure we have a list of strings
+def _ensure_list(s):
+    return s if isinstance(s, list) else [s]
+
+def _chunked_join(data,prefix='',joiner='',nmax=50):
+    '''
+    Breaks data into chunks of maxium size nmax
+
+    Each element of the chunked data is prefixed with prefix and joined back together with joiner
+
+    data = ['1','2','3','4']
+    _chunked_join(data,prefix='bibcode:','joiner=' OR ',nmax=2)
+
+    ['bibcode:1 OR bibcode:2','bibcode:3 OR bibcode:4']
+
+    Handy to break up large queries that might exceed search limits (seems to be a max of 50
+    bibcodes or arxiv ids at a time).
+    Where prefix is the ads term ('bibcode:' or 'indentifier:')
+    and joiner is logical or ' OR '
+
+    '''
+    res = []
+
+    for pos in range(0, len(data), nmax):
+        x = [prefix+j for j in data[pos:pos + nmax]]
+        res.append(joiner.join(x))
+    return res
+
+
+class adsabs(object):
+    def __init__(self):
+        self._token = None
+        self._orcid = None
+        self._libs = None
+
+    @property
+    def token(self):
+        if self._token is None:
+            with open(_TOKEN_FILE,'r') as f:
+                self._token = f.readline().strip() 
+
+        ads.config.token = self._token
+        return self._token
+
+    @token.setter
+    def token(self, token):
+        self._token = token
+        os.makedirs(os.path.basename(_TOKEN_FILE),exist_ok=True)
+        with open(_TOKEN_FILE,'w') as f:
+            print(self._token,file=f)
+        
+
+    @property
+    def orcid(self):
+        if self._orcid is None:
+            with open(_TOKEN_FILE,'r') as f:
+                self._orcid = f.readline().strip() 
+        return self._orcid
+
+    @orcid.setter
+    def orcid(self, orcid):
+        self._orcid = orcid
+        os.makedirs(os.path.basename(_ORCID_FILE),exist_ok=True)
+        with open(_ORCID_FILE,'w') as f:
+            print(self._orcid,file=f)
+
+
+    def libraries(self):
+        '''
+        Returns all of the users ADS libraries
+        '''
+        if self._libs is None:
+            self._libs  = adslibraries(self.token)
+        return self._libs
+
+    def library(self, library):
+        '''
+        Returns the ADS liubrary given by 'library'
+        '''
+        if self._libs is None:
+            self._libs  = adslibraries(self.token)
+        return self._libs[library]
+
+    def article(self, bibcode):
+        '''
+        Returns an article given its bibcode
+        '''
+        return article(self.token,bibcode=bibcode)
+
+    def search(self, query):
+        '''
+        Handles generic searching either via ads, bibtex, or passing a url
+
+        Returns a jounral (list of articles)
+        '''
+        s = search(self.token)
+        return s.search(query)
+
+
+class adslibraries(object):
+    '''
+    This is a collection of ADS libraries that supports iteration
+    '''
+    def __init__(self, token):
+        self.token = token
+        self.data = None
+        self._n = 0
+        
+    def update(self):
+        data = requests.get(_urls['libraries'],
+                            auth=_BearerAuth(self.token)
+                            ).json()['libraries']
+        # Repack data from list of dicts to dict of dicts
+        self.data = {}
+        for value in data:
+            self.data[value['name']] = value
+
+    def names(self):
+        if self.data is None:
+            self.update()
+        return self.data.keys()
+
+    def __getitem__(self, key):
+        if self.data is None:
+            self.update()
+        if key in self.data.keys():
+            return library(self.token,self.data[key]['id'])
+
+    def get(self, name):
+        '''
+        Fetches library
+        '''
+        return library(self.token,self.data[name]['id'])
+
+    def add(self, name, description='', public=False):
+        '''
+        Adds new library
+        '''
+        data = {
+            'name':name,
+            'public':public,
+            'description':description
+            }
+        r = requests.post(_urls['libraries'],
+                auth=_BearerAuth(self.token),
+                headers={'Content-Type':'application/json'},
+                json = data).json()
+        if 'name' not in r:
+            raise ValueError(r['error'])
+        self.update()
 
     
-# def parse_search(query):
-#     if os.path.isfile(query):
-#         print("Cant handle files yet")
-#         return None
-#     elif 'http://' in query or 'www.' in query or 'https://' in query:
-#         return process_url(query)
-#     elif any(i in query for i in search_syntax):
-#         return query
-#     x = query.split()
-#     if len(x)==1:
-#         return 'author:"'+x[0]+'"'
-#     elif len(x)==2:
-#         return 'author:"'+x[0]+'" '+' year:'+str(x[1])
-  
-# def process_url(query):
-#     if 'adsabs.harvard.edu' in query: # ADSABS
-#         q = query.split('/')
-#         if len(q[-1])==19:
-#             return 'bibcode:'+q[-1]
-#         elif len(q[-2])==19:
-#             return 'bibcode:'+q[-2]
-#         else:
-#             return None
-#     elif 'arxiv.org/' in query: #ARIXV
-#         return 'arXiv:'+query.split('/')[-1]
-#     elif "iopscience.iop.org" in query: #ApJ, ApJS
-#         #http://iopscience.iop.org/article/10.3847/1538-4365/227/2/22/meta
-#         return 'doi:'+query.partition('article/')[-1].replace('/meta','')
-#     elif 'academic.oup.com/mnras' in query: #MNRAS
-#         # https://academic.oup.com/mnras/article/433/2/1133/1747991
-#         d = re.sub("[a-zA-Z:]","",query).split('/')
-#         doi = []
-#         for i in d:
-#             if len(i) and '..' not in i:
-#                 doi.append(i)
-#         return 'bibstem:mnras volume:'+doi[0]+' page:'+doi[2]
-#     elif 'aanda.org' in query: #A&A:
-#         #https://www.aanda.org/articles/aa/abs/2017/07/aa30698-17/aa30698-17.html
-#         #Resort to downloading webpage as the url is useless
-#         data = urllib.request.urlopen(query)
-#         html = data.read()
-#         ind = html.index(b'citation_bibcode')
-#         x = html[ind:ind+50].decode()
-#         #bibcdoes are 19 characters, but the & in A&A gets converted to %26
-#         return 'bibcode:"'+str(x[27:27+21]).replace('%26','&')+'"'
-#     elif 'nature.com' in query: #nature
-#         #https://www.nature.com/articles/s41550-018-0442-z #plus junk after this
-#         if '?' in query:
-#             query = query[:query.index("?")]
-#         data = urllib.request.urlopen(query+'.ris')
-#         html = data.read().decode().split('\n')
-#         for i in html:
-#             if 'DO  -' in i:
-#                 doi = i.split()[-1]
-#                 return 'doi:'+i.split()[-1]
-#     elif 'sciencemag.org' in query: #science
-#         #http://science.sciencemag.org/content/305/5690/1582
-#         data = urllib.request.urlopen(query)
-#         html = data.read()
-#         ind = html.index(b'citation_doi')
-#         doi = html[ind:ind+100].decode().split('/>')[0].split('=')[-1].strip().replace('"','')
-#         return "doi:" + doi
-#     elif 'PhysRevLett' in query: #Phys Review Letter
-#         #https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.116.241103
-#         doi = '/'.join(query.split('/')[-2:])
-#         return "doi:" + doi
-        
-#     return None
+    def remove(self, name):
+        '''
+        Deletes library
+        '''
+        if name not in self.data.keys():
+            raise KeyError('Library does not exit')
+
+        lid = self.data[name]['id']
+
+        requests.delete(_urls['documents']+'/'+lid,
+                auth=_BearerAuth(self.token)
+                )
+
+    def keys(self):
+        if self.data is None:
+            self.update()
+        return self.data.keys()
+
+    def __len__(self):
+        if self.data is not None:
+            return len(self.data)
+        else:
+            return 0
+
+    def __contains__(self, key):
+        if self.data is not None:
+            return key in self.data
+        else:
+            return False
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.data is None:
+            self.update()
+
+        if self._n >= len(self.data):
+            raise StopIteration
+
+        res = self.get(self.keys()[self._n])
+        self._n +=1
+        return res
+
+    def reset(self):
+        self._n = 0
+
+
+class library(object):
+    '''
+    An instance of a single ADS library
+    '''
+    def __init__(self, token, libraryid):
+        self.token = token
+        self.libraryid = libraryid
+        self.update()
+        self._n = 0
+
+    def url(self, base):
+        return base + '/' + self.libraryid
+
+
+    def update(self):
+        data = requests.get(self.url(_urls['libraries']),
+                            auth=_BearerAuth(self.token)
+                            ).json()
+        self.docs = data['documents']
+        self.metadata = data['metadata']
+
+    def keys(self):
+        return self.docs
+
+    def __getitem__(self,key):
+        if key in self.docs:
+            return article(self.token,key)
+
+    def __getattr__(self, key):
+        if key in self.metadata.keys():
+            return self.metadata[key]
+
+    def __dir__(self):
+        return self.metadata.keys() + ['keys','add','remove','get','update']
+
+    def get(self, bibcode):
+        return article(self.token,bibcode=bibcode)
+
+    def add(self, bibcode):
+        '''
+        Add bibcode to library
+        '''
+        data = {'bibcode':_ensure_list(bibcode),"action":"add"}
+        r = requests.post(self.url(_urls['documents']),
+                auth=_BearerAuth(self.token),
+                headers={'Content-Type':'application/json'},
+                json = data).json()
+        # Error check:
+        if 'number_added' not in r:
+            raise ValueError(r['message'])
+
+
+    def remove(self, bibcode):
+        '''
+        Remove bibcode from library
+        '''
+        data = {'bibcode':_ensure_list(bibcode),"action":"remove"}
+        r = requests.post(self.url(_urls['documents']),
+                auth=_BearerAuth(self.token),
+                headers={'Content-Type':'application/json'},
+                json = data).json()
+        # Error check:
+        if 'number_removed' not in r:
+            raise ValueError(r['message'])
+
+
+    def __len__(self):
+        return len(self.docs)
+
+    def __contains__(self, key):
+        return key in self.docs
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self._n >= len(self.docs):
+            raise StopIteration
+
+        res = self.get(self.keys()[self._n])
+        self._n +=1
+        return res
+
+    def reset(self):
+        self._n = 0
+
+class journal(object):
+    '''
+    This is a collection of articles that supports iterating over.
+
+    We defer as much as possible actualy accessing data untill its needed
+    '''
+    def __init__(self, token, bibcodes, data=None):
+        self.token = token
+        self._set_bibcodes = set(bibcodes)   
+        self._bibcodes = bibcodes    
+        self._data = {}
+
+        if data is not None:
+            for i in data:
+                self._data[i.bibcode] = article(self.token, i.bibcode, data=i)
+
+        self._n = 0
+
+    def __len__(self):
+        return len(self._set_bibcodes)
+
+    def __contains__(self, key):
+        return key in self._set_bibcodes
+
+    def __getitem__(self, key):
+        if key in self._set_bibcodes:
+            if key not in self._data:
+                self._data[key] = article(self.token,bibcode=key)
+            return self._data[key]
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self._n >= len(self._bibcodes):
+            raise StopIteration
+
+        res = self.__getitem__(self._bibcodes[self._n])
+        self._n +=1
+        return res
+
+    def reset(self):
+        self._n = 0
+
+    def keys(self):
+        return self._set_bibcodes
+
+
+class article(object):
+    '''
+    A single article that is given by either a bibcode, arxic id, or doi.
+    Bibcodes are allways the prefered ID as the doi or arxiv id we query  ADS for its bibcode.
+
+    We defer actually searching the ads untill the user asks for a field.
+    Thus we can make as many article as we want (if we allready know the bibcode)
+    without hitting the ADS api limits.
+    '''
+
+    def __init__(self, token, bibcode=None, doi=None, arxiv=None, data=None):
+        self.token = token
+        self._bibcode = bibcode
+        self.doi = doi
+        self.arxiv = arxiv
+        self._data = None
+
+        if data is not None:
+            self._data = data
+            self._bibcode = self._data.bibcode
+    
+    def search(self,force=False):
+        if self._data is None or force:
+            self._data = list(ads.SearchQuery(bibcode=self.bibcode,
+                            fl=_fields,rows=1))[0]
+
+    @property
+    def bibcode(self):
+        if self._bibcode is None:
+            if self.doi is not None:
+                self._data = list(ads.SearchQuery(doi=self.doi,
+                                fl=_fields,rows=1))[0]
+            elif self.arxiv is not None:
+                self._data = list(ads.SearchQuery(q='identifier:'+self.arxiv,
+                                fl=_fields,rows=1))[0]
+            else:
+                raise AttributeError('Must set either bibcode, doi, or arxiv')
+            self._bibcode = self._data.bibcode
+        return self._bibcode
+
+    def __gettattr__(self, key):
+        if self._data is not None:
+            if key in self._data:
+                return self._data[key]
+
+    @property
+    def title(self):
+        if self._data is None:
+            self.search()
+        return self._data.title[0]
+
+    @property
+    def authors(self):
+        if self._data is None:
+            self.search()
+        return  '; '.join(self._data.author)
+
+    @property
+    def first_author(self):
+        if self._data is None:
+            self.search()
+        return self._data.author[0]
+
+    @property
+    def pubdate(self):
+        if self._data is None:
+            self.search()
+        return self._data.pubdate
+
+    @property
+    def journal(self):
+        if self._data is None:
+            self.search()
+        return self._data.bibstem[0]
+
+    @property
+    def filename(self):
+        return self.bibcode+'.pdf'
+
+    @property
+    def year(self):
+        if self._data is None:
+            self.search()
+        return self._data.year
+
+    @property
+    def abstract(self):
+        if self._data is None:
+            self.search()
+        return self._data.abstract
+
+    @property
+    def name(self):
+        if self._data is None:
+            self.search()
+        return self.first_author + ' ' + self.year
+
+    def pdf(self, filename):
+        # There are multiple possible locations for the pdf
+        # Try to avoid the journal links as that usally needs a 
+        # vpn working to use a university ip address
+        strs = ['/PUB_PDF','/EPRINT_PDF','/ADS_PDF']
+
+        for i in strs:
+            url = _urls['pdfs']+str(self.bibcode)+i
+            headers = {'user-agent': 'my-app/0.0.1'}
+            r = requests.get(url, allow_redirects=True,headers=headers)
+
+            with open(filename,'wb') as f:
+                f.write(r.content)
+
+            # Check what we got is a pdf and not a text file
+            if filetype.guess(filename).mime == 'application/pdf':
+                break
+
+            os.remove(filename)
+
+        if not os.path.exists(filename):
+            raise ValueError("Couldn't download file")
+
+    def citations(self):
+        data = list(ads.SearchQuery(q='citations(bibcode:"'+self._bibcode+'")',fl=_fields))
+        bibs = [i.bibcode for i in data]
+        return journal(self.token,bibs,data=data)
+
+    def references(self):
+        data = list(ads.SearchQuery(q='references(bibcode:"'+self._bibcode+'")',fl=_fields))
+        bibs = [i.bibcode for i in data]
+        return journal(self.token,bibs,data=data) 
+
+    def bibtex(self,filename=None):
+        data = {'bibcode':[self.bibcode]}
+        r = requests.post(_urls['bibtex'],
+                auth=_BearerAuth(self.token),
+                headers={'Content-Type':'application/json'},
+                json = data).json()
+
+        if 'error' in r:
+            raise ValueError(r['error'])
+
+        bp = BibTexParser(interpolate_strings=False)
+
+        if filename is not None:
+            with open(filename,'w') as f:
+                f.write(r['export'])
+
+        return bibtexparser.loads(r['export'],parser=bp)
+
+    #def __repr__(self):
+    #    return self.bibcode
+
+    def __str__(self):
+        return self.name
+
+    def __reduce__(self):
+        return (article, (self.token,self.bibcode))
     
 
-# class search(search.searcher):
-#     def __init__(self,apikey=None):
-#         self.ads = ads
-#         if apikey is None:
-#             apikey = load_apikey()
-#         try:
-#             self.ads.config.token = apikey
-#         except AttributeError:
-#             pass
-        
-#     def search_author_year(self,author,year,fields=_fl_full):
-#         yr = self._parse_year_range(year)
-#         a = self._parse_author(author)
-#         query = a+' '+yr
-#         yield self._process(self.ads.SearchQuery(q=query,fl=fields),fields)
-        
-#     def search_author(self,author,fields=_fl_full):
-#         a = self._parse_author(author)
-#         query = a
-#         return self._process(self.ads.SearchQuery(q=query,fl=fields),fields)
-        
-#     def search(self,query,fields=_fl_full):
-#         return self._process(self.ads.SearchQuery(q=query,fl=fields),fields)
-        
-#     def search_bibcode(self,bibcode,fields=_fl_full):
-#         return self._process(list(self.ads.SearchQuery(bibcode=bibcode,fl=fields)),fields)
+class search(object):
+    def __init__(self, token):
+        self.token = token
 
-#     def get_all(self):
-#         if utils.testing:
-#             return self._process(list(self.ads.SearchQuery(author='me',fl=_fl_full)),_fl_full)
-#         else:
-#             print("Bad idea to return all possible papers with ads")
+    def search(self, query):
+        # Check if url?
+        res = self._process_url(query)
+
+        if len(res):
+            # A url
+            art = article(self.token, **res)# Either bibcode, doi or arxiv id
+            bibs = [art.bibcode]
+            return journal(self.token,bibs,data=art._data)
+
+        # Is it a bibtex?
+        res = self._process_bibtex(query)
+        if len(res):
+            # A bibtex
+            art = article(self.token, **res)# Either bibcode, doi or arxiv id
+            bibs = [art.bibcode]
+            return journal(self.token,bibs,data=art._data)
+
+        # Proberbly an ads query
+        data = [i.bibcode for i in 
+                list(ads.SearchQuery(q=query,fl=_fields))
+                ]
+        bibs = [i.bibcode for i in data]
+        return journal(self.token,bibs,data=data)
+
+    def _process_bibtex(self, query):
+        res = {}
+        if query.startswith('@'):
+            bp = BibTexParser(interpolate_strings=False)
+            bib = bibtexparser.loads(query,filter=bp)
+            bib = bib.entries[0]
+            #What is in the bib?
+            if 'adsurl' in bib:
+                res['bibcode'] = bib['adsurl'].split('/')[-1]
+            elif 'eprint' in bib:
+                res['arxiv'] = bib['eprint']
+            elif 'doi' in bib:
+                res['doi'] = bib['doi']
+            else:
+                raise ValueError("Don't understand this bitex")
+        return res
 
 
-#     def _process(self,articles,fields):
-#         for i in articles:
-#             res = {}
-#             for j in fields:
-#                 res[j] = getattr(i,j)
-#             yield res
+    def _process_url(self, url):
+        '''
+        Given an URL attempts to work out the bibcode, arxiv id, or doi for it
+        '''
+
+        res = {}
+        headers = {'user-agent': 'my-app/0.0.1'}
+
+        if 'adsabs.harvard.edu' in url: # ADSABS
+            q = url.split('/')
+            if len(q[-1])==19:
+                res['bibcode'] = q[-1]
+            elif len(q[-2])==19:
+                res['bibcode'] = q[-2]
+            else:
+                res['bibcode'] = None
+        elif 'arxiv.org/' in url: #ARXIV
+            res['arxiv'] = url.split('/')[-1]
+        elif "iopscience.iop.org" in url: #ApJ, ApJS
+            #http://iopscience.iop.org/article/10.3847/1538-4365/227/2/22/meta
+            res['doi'] = url.partition('article/')[-1].replace('/meta','')
+        elif 'academic.oup.com/mnras' in url: #MNRAS
+            # https://academic.oup.com/mnras/article/433/2/1133/1747991
+            r=requests.get(url,headers=headers)
+            for i in r.text.split():
+                if 'doi.org' in i and '>' in i:
+                    break # Many matches but we want the line which has a href=url>
+            res['doi'] = i.split('>')[1].split('<')[0].split('doi.org/')[1]
+        elif 'aanda.org' in url: #A&A:
+            #https://www.aanda.org/articles/aa/abs/2017/07/aa30698-17/aa30698-17.html
+            #Resort to downloading webpage as the url is useless
+            r=requests.get(url,headers=headers)
+            for line in r.text.split('>'):
+                if 'citation_bibcode' in line:
+                    #bibcodes are 19 characters, but the & in A&A gets converted to %26
+                    res['bibcode'] = line.split('=')[-1].replace('%26','&')
+                    break
+        elif 'nature.com' in url: #nature
+            #https://www.nature.com/articles/s41550-018-0442-z #plus junk after this
+            if '?' in url:
+                url = url[:url.index("?")]
+            r=requests.get(url+'.ris',headers=headers)
+            for i in r.text.split():
+                if 'doi.org' in i:
+                    res['doi'] = '/'.join(i.split('/')[-2:])
+                    break
+        elif 'sciencemag.org' in url: #science
+            #http://science.sciencemag.org/content/305/5690/1582
+            r=requests.get(url,headers=headers)
+            for line in r.text.split('>'):
+                if 'meta name="citation_doi"' in line:
+                    res['doi'] = line.split('=')[-1].replace('"','').removesuffix('/').strip()
+        elif 'PhysRevLett' in url: #Phys Review Letter
+            #https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.116.241103
+            doi = '/'.join(url.split('/')[-2:])
+            res['doi'] = doi
         
-#     def _parse_year_range(self,year=None):     
-#         if year is None:
-#             s,e = str(_year_start), str(_year_end)
-#         elif str(year).endswith('-'):
-#              s,e = str(year.replace('-','')), _year_end
-#         elif str(year).startswith('-'):
-#              s,e = _year_start,str(year.replace('-',''))
-#         else:
-#              s,e = str(year), str(year)
-             
-#         return 'pubdate:['+s+'-01 TO '+e+'-12]'
-        
-#     def _parse_author(self,author):
-#         return 'author:("'+author+'")'
+        return res
+
+
+
+class arxivrss(object):
+    def __init__(self, token):
+        self.url = 'http://export.arxiv.org/rss/astro-ph'
+        self._feed = feedparser.parse(self.url)
+        self.token = token
+
+    def articles(self):
+        arxiv_ids = [i['id'].split('/')[-1] for i in self._feed['entries']]
+
+        # Break up data into chunks to process otherwise we max at 50 entries:
+        query = _chunked_join(arxiv_ids,prefix='identifier:',joiner=' OR ')
+
+        sdata = []
+        for i in query:
+            sdata.append(list(ads.SearchQuery(q=i,fl=_fields)))
+
+        data = [item for sublist in sdata for item in sublist]
+
+        bibs = [i.bibcode for i in data]
+        return journal(self.token,bibcodes=bibs,data=data)
+
+
+
+a=adsabs()
+x=arxivrss(a.token)
+xx=x.articles()
+
+print(len(xx))
