@@ -5,6 +5,8 @@ import appdirs
 import tempfile
 import shutil
 import requests
+import threading
+from pathlib import Path
 
 import gi
 gi.require_version('EvinceDocument', '3.0')
@@ -58,19 +60,25 @@ def db_read():
     return read(loc('pdf_store')) # Store db in same folder as pdf's
 
 
+
 def download_file(url,filename):
+    def download():
+        headers = {'user-agent': 'my-app/0.0.1'}
+        r = requests.get(url, allow_redirects=True,headers=headers)
+        with open(filename,'wb') as f:
+            f.write(r.content)
+
     if os.path.exists(filename):
         return filename
     
-    headers = {'user-agent': 'my-app/0.0.1'}
-    r = requests.get(url, allow_redirects=True,headers=headers)
-    with open(filename,'wb') as f:
-        f.write(r.content)
+    thread = threading.Thread(target=download)
+    thread.daemon = True
+    thread.start()
     
     if os.path.exists(filename):
         # Test if actually a pdf:
         try:
-            EvinceDocument.Document.factory_get_document('file://'+filename)
+            EvinceDocument.Document.factory_get_document(path(filename).as_uri())
         except gi.repository.GLib.Error:
             print("Not a pdf ",str(filename))
             os.remove(filename)
@@ -78,57 +86,3 @@ def download_file(url,filename):
 
         return filename
 
-def process_url(url):
-    res = {}
-    headers = {'user-agent': 'my-app/0.0.1'}
-
-    if 'adsabs.harvard.edu' in url: # ADSABS
-        q = url.split('/')
-        if len(q[-1])==19:
-            res['bibcode'] = q[-1]
-        elif len(q[-2])==19:
-            res['bibcode'] = q[-2]
-        else:
-            res['bibcode'] = None
-    elif 'arxiv.org/' in url: #ARXIV
-        res['arxiv'] = url.split('/')[-1]
-    elif "iopscience.iop.org" in url: #ApJ, ApJS
-        #http://iopscience.iop.org/article/10.3847/1538-4365/227/2/22/meta
-        res['doi'] = url.partition('article/')[-1].replace('/meta','')
-    elif 'academic.oup.com/mnras' in url: #MNRAS
-        # https://academic.oup.com/mnras/article/433/2/1133/1747991
-        r=requests.get(url,headers=headers)
-        for i in r.text.split():
-            if 'doi.org' in i and '>' in i:
-                break # Many matches but we want the line which has a href=url>
-        res['doi'] = i.split('>')[1].split('<')[0].split('doi.org/')[1]
-    elif 'aanda.org' in url: #A&A:
-        #https://www.aanda.org/articles/aa/abs/2017/07/aa30698-17/aa30698-17.html
-        #Resort to downloading webpage as the url is useless
-        r=requests.get(url,headers=headers)
-        for line in r.text.split('>'):
-            if 'citation_bibcode' in line:
-                #bibcodes are 19 characters, but the & in A&A gets converted to %26
-                res['bibcode'] = line.split('=')[-1].replace('%26','&')
-                break
-    elif 'nature.com' in url: #nature
-        #https://www.nature.com/articles/s41550-018-0442-z #plus junk after this
-        if '?' in url:
-            url = url[:url.index("?")]
-        r=requests.get(url+'.ris',headers=headers)
-        for i in r.text.split():
-            if 'doi.org' in i:
-                res['doi'] = '/'.join(i.split('/')[-2:])
-                break
-    elif 'sciencemag.org' in url: #science
-        #http://science.sciencemag.org/content/305/5690/1582
-        r=requests.get(url,headers=headers)
-        for line in r.text.split('>'):
-            if 'meta name="citation_doi"' in line:
-                res['doi'] = line.split('=')[-1].replace('"','').removesuffix('/').strip()
-    elif 'PhysRevLett' in url: #Phys Review Letter
-        #https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.116.241103
-        doi = '/'.join(url.split('/')[-2:])
-        res['doi'] = doi
-        
-    return res

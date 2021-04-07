@@ -17,6 +17,9 @@ _TOKEN_FILE = os.path.join(Path.home(),'.ads','dev_key')
 # Where to store users ORCID key
 _ORCID_FILE = os.path.join(Path.home(),'.ads','orcid')
 
+# Where to store PDF's
+_PDFFOLDER_FILE = os.path.join(Path.home(),'.ads','pdfs')
+
 _base_url = 'https://api.adsabs.harvard.edu/v1/biblib'
 _urls = {
     'base' :  _base_url,
@@ -78,13 +81,17 @@ class adsabs(object):
         self._token = None
         self._orcid = None
         self._libs = None
+        self._pdffolder = None 
+        self.search_source = None
 
     @property
     def token(self):
         if self._token is None:
-            with open(_TOKEN_FILE,'r') as f:
-                self._token = f.readline().strip() 
-
+            try:
+                with open(_TOKEN_FILE,'r') as f:
+                    self._token = f.readline().strip() 
+            except FileNotFoundError:
+                return None
         ads.config.token = self._token
         return self._token
 
@@ -99,8 +106,11 @@ class adsabs(object):
     @property
     def orcid(self):
         if self._orcid is None:
-            with open(_TOKEN_FILE,'r') as f:
-                self._orcid = f.readline().strip() 
+            try:
+                with open(_ORCID_FILE,'r') as f:
+                    self._orcid = f.readline().strip() 
+            except FileNotFoundError:
+                return None
         return self._orcid
 
     @orcid.setter
@@ -110,22 +120,29 @@ class adsabs(object):
         with open(_ORCID_FILE,'w') as f:
             print(self._orcid,file=f)
 
+    @property
+    def pdffolder(self):
+        if self._pdffolder is None:
+            try:
+                with open(_PDFFOLDER_FILE,'r') as f:
+                    self._pdffolder = f.readline().strip() 
+            except FileNotFoundError:
+                return None
+        return self._pdffolder
 
-    def libraries(self):
-        '''
-        Returns all of the users ADS libraries
-        '''
-        if self._libs is None:
-            self._libs  = adslibraries(self.token)
-        return self._libs
+    @pdffolder.setter
+    def pdffolder(self, pdffolder):
+        self._pdffolder = pdffolder
+        os.makedirs(os.path.basename(_PDFFOLDER_FILE),exist_ok=True)
+        with open(_PDFFOLDER_FILE,'w') as f:
+            print(self._pdffolder,file=f)
 
-    def library(self, library):
-        '''
-        Returns the ADS liubrary given by 'library'
-        '''
-        if self._libs is None:
-            self._libs  = adslibraries(self.token)
-        return self._libs[library]
+    def __getattr__(self, key):
+        if key == 'libraries':
+            if self._libs is None:
+                self._libs  = libraries(self.token)
+            return self._libs
+
 
     def article(self, bibcode):
         '''
@@ -143,7 +160,7 @@ class adsabs(object):
         return s.search(query)
 
 
-class adslibraries(object):
+class libraries(object):
     '''
     This is a collection of ADS libraries that supports iteration
     '''
@@ -164,7 +181,9 @@ class adslibraries(object):
     def names(self):
         if self.data is None:
             self.update()
-        return self.data.keys()
+        x = list(self.keys())
+        x.sort()
+        return x
 
     def __getitem__(self, key):
         if self.data is None:
@@ -264,6 +283,7 @@ class library(object):
                             ).json()
         self.docs = data['documents']
         self.metadata = data['metadata']
+        self.name = self.metadata['name']
 
     def keys(self):
         return self.docs
@@ -359,6 +379,8 @@ class journal(object):
             if key not in self._data:
                 self._data[key] = article(self.token,bibcode=key)
             return self._data[key]
+        else:
+            return self.__getitem__(self._bibcodes[key])
 
     def __iter__(self):
         return self
@@ -508,7 +530,7 @@ class article(object):
         bibs = [i.bibcode for i in data]
         return journal(self.token,bibs,data=data) 
 
-    def bibtex(self,filename=None):
+    def bibtex(self,filename=None,text=True):
         data = {'bibcode':[self.bibcode]}
         r = requests.post(_urls['bibtex'],
                 auth=_BearerAuth(self.token),
@@ -518,13 +540,16 @@ class article(object):
         if 'error' in r:
             raise ValueError(r['error'])
 
-        bp = BibTexParser(interpolate_strings=False)
-
         if filename is not None:
             with open(filename,'w') as f:
                 f.write(r['export'])
 
-        return bibtexparser.loads(r['export'],parser=bp)
+        if text:
+            return r['export']
+        else:
+            bp = BibTexParser(interpolate_strings=False)
+            return bibtexparser.loads(r['export'],parser=bp)
+
 
     #def __repr__(self):
     #    return self.bibcode
@@ -667,8 +692,8 @@ class arxivrss(object):
 
 
 
-a=adsabs()
-x=arxivrss(a.token)
-xx=x.articles()
+# a=adsabs()
+# x=arxivrss(a.token)
+# xx=x.articles()
 
-print(len(xx))
+# print(len(xx))
