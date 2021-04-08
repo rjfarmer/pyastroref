@@ -2,6 +2,8 @@
 
 import sys,os
 import argparse
+import threading
+from enum import Enum
 
 from . import adsabs
 
@@ -16,6 +18,12 @@ from gi.repository import EvinceView
 
 
 EvinceDocument.init()
+
+
+class ERRORS(Enum):
+    DOWNLOAD = 1
+    PDF = 2
+
 
 # _pages = {}
 # _settings = {}
@@ -390,101 +398,6 @@ EvinceDocument.init()
 #         return self.grid
 
 
-# class displayResults(object):
-#     cols = ["Title", "First Author", "Year", "Authors", "Journal", "PDF", "Bibtex"]
-
-#     def __init__(self, notebook, data=None):
-#         self.notebook = notebook
-
-#         self.data = data
-#         self.liststore = Gtk.ListStore(*[str]*len(self.cols))
-#         self.make_liststore()
-#         self.make_treeview()
-
-
-#     def make_liststore(self):
-#         # Creating the ListStore model
-#         for paper in self.data:
-
-#             pdficon = 'go-down'
-#             if os.path.exists(os.path.join(utils.pdf_read(),paper['filename'])):
-#                 pdficon = 'x-office-document'
-
-
-#             authors = paper['authors'].split(';')[1:]
-#             if len(authors) > 5:
-#                 authors = authors[0:5]
-#                 authors.append('et al')
-#             authors = '; '.join([i.strip() for i in authors])
-
-#             self.liststore.append([
-#                 paper['title'],
-#                 paper['first_author'],
-#                 paper['year'],
-#                 authors,
-#                 paper['journal'],
-#                 pdficon,
-#                 'edit-copy'
-#             ])
-
-#     def make_treeview(self):
-#         # creating the treeview and adding the columns
-#         self.treeviewsorted = Gtk.TreeModelSort(self.liststore)
-#         self.treeview = Gtk.TreeView.new_with_model(self.treeviewsorted)
-#         self.treeview.set_has_tooltip(True)
-#         for i, column_title in enumerate(self.cols):
-#             if column_title == 'PDF' or column_title == 'Bibtex':
-#                 renderer = Gtk.CellRendererPixbuf()
-#                 column = Gtk.TreeViewColumn(column_title, renderer, icon_name=i)
-#                 column.set_expand(False)
-#             else:
-#                 renderer = Gtk.CellRendererText()
-#                 renderer.props.wrap_width = 100
-#                 renderer.props.wrap_mode = Gtk.WrapMode.WORD
-#                 column = Gtk.TreeViewColumn(column_title, renderer, text=i)
-#                 column.set_sizing(Gtk.TreeViewColumnSizing.AUTOSIZE)
-#                 column.set_resizable(True)
-#                 column.set_sort_column_id(i)
-#                 if column_title == 'Title':
-#                     column.set_expand(True)
-
-#             self.treeview.append_column(column)
-
-
-#         # setting up the layout, putting the treeview in a scrollwindow
-#         self.scrollable_treelist = Gtk.ScrolledWindow()
-#         self.scrollable_treelist.set_vexpand(True)
-#         self.scrollable_treelist.set_hexpand(True)
-
-#         self.scrollable_treelist.add(self.treeview)
-#         self.treeview.connect('row-activated' , self.button_press_event)
-#         self.treeview.connect('query-tooltip' , self.tooltip)
-
-#     def button_press_event(self, treeview, path, view_column):
-#         cp = self.treeviewsorted.convert_path_to_child_path(path)
-#         row = cp.get_indices()[0]
-#         Search(self.notebook, self.data[row]['bibcode'])
-
-#     def refresh(self, data):
-#         self.data = data
-#         self.liststore.clear()
-#         self.make_liststore()
-
-#     def page(self):
-#         return self.scrollable_treelist
-
-#     def tooltip(self, widget, x, y, keyboard, tooltip):
-#         path = self.treeview.get_path_at_pos(x,y)[0]
-#         if path is None:
-#             return False
-#         cp = self.treeviewsorted.convert_path_to_child_path(path)
-#         row = cp.get_indices()[0] 
-#         tooltip.set_text(self.data[row]['abstract'])
-#         self.treeview.set_tooltip_row(tooltip, path)
-#         return True
-
-
-
 
 adsdata=adsabs.adsabs()
 
@@ -564,8 +477,7 @@ class MainWindow(Gtk.Window):
         print(query)
 
     def setup_panels(self):
-        self.panels = Gtk.Grid()
-        self.panels.set_row_homogeneous(True)
+        self.panels = Gtk.HPaned()
 
         self.left_panel = LeftPanel()
 
@@ -574,7 +486,9 @@ class MainWindow(Gtk.Window):
         self.right_panel.set_hexpand(True)
 
         x = adsabs.arxivrss(adsdata.token)
-        self.right_panel.append_page(ShowJournal(x.articles()).add())
+        label = Gtk.Label('Arxiv')
+        self.right_panel.append_page(ShowJournal(x.articles(),self.right_panel).add(),label)
+        self.right_panel.show_all()
 
         self.panels.add(self.left_panel.tree)
         self.panels.add(self.right_panel)
@@ -706,8 +620,9 @@ class LeftPanel(object):
 
 class ShowJournal(object):
     cols = ["Title", "First Author", "Year", "Authors", "Journal", "PDF", "Bibtex"]
-    def __init__(self, journal):
+    def __init__(self, journal, notebook):
         self.journal = journal
+        self._notebook = notebook
 
         self.store = Gtk.ListStore(*[str]*len(self.cols))
 
@@ -808,18 +723,123 @@ class ShowJournal(object):
         article = self.journal[row]
 
         title = col.get_title()
-        if event.button == 1: # left click
-            if title == 'PDF':
-                pass # Load PDF
-            elif title == 'Bibtex':
+        if event.button == Gdk.BUTTON_PRIMARY: # left click
+            print('Here')
+            if title == 'Bibtex':
                 clipboard(article.bibtex(text=True))
             elif title == "First Author":
                 pass # Search on author
+            else:
+                print('Show...')
+                p = ShowPDF(article,self._notebook)
+                p.add()
+        elif event.button == Gdk._2BUTTON_PRESS:
+            p = ShowPDF(article,self._notebook)
+            p.add()
 
 
 def clipboard(data):
     clip = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
     clip.set_text(data,-1)
+
+
+class ShowPDF(object):
+    def __init__(self, data, notebook):
+        self.data = data
+        self.notebook = notebook
+
+        self._filename = os.path.join(adsdata.pdffolder,self.data.filename)
+
+    def download(self):
+        def get_pdf():
+            self.data.pdf(self._filename)
+            self.show()
+
+        if not os.path.exists(self._filename):
+            thread = threading.Thread(target=get_pdf)
+            thread.daemon = True
+            thread.start()
+            
+
+    def add(self):
+        print('Start',self._filename)
+        self.page = Gtk.ScrolledWindow()
+
+        header = Gtk.HBox()
+        title_label = Gtk.Label(self.data.name)
+        image = Gtk.Image()
+        image.set_from_stock(Gtk.STOCK_CLOSE, Gtk.IconSize.MENU)
+        close_button = Gtk.Button()
+        close_button.set_image(image)
+        close_button.set_relief(Gtk.ReliefStyle.NONE)
+        close_button.connect('clicked', self.on_tab_close)
+
+        header.pack_start(title_label,
+                          expand=True, fill=True, padding=0)
+        header.pack_end(close_button,
+                        expand=False, fill=False, padding=0)
+        self.header = header
+        self.header.show_all()
+
+
+        self.page_num = self.notebook.append_page(self.page, self.header)
+        self.notebook.add(self.page)
+        self.notebook.set_tab_reorderable(self.page, True)
+        self.notebook.show_all()
+        print('Start Download')
+        try:
+            self.download()
+        except ValueError:
+            #ErrorWindow(self.data,ERRORS.DOWNLOAD)
+            return
+        print('End Download',self._filename)
+
+    def show(self):
+        print('Start show')
+        try:
+            doc = EvinceDocument.Document.factory_get_document('file://'+self._filename)
+        except gi.repository.GLib.Error:
+            #ErrorWindow(self.data,ERRORS.PDF)
+            return
+        view = EvinceView.View()
+        model = EvinceView.DocumentModel()
+        model.set_document(doc)
+        view.set_model(model)
+        self.page.add(view)
+
+        self.page.show_all()
+        self.notebook.show_all()
+        print('Show page')
+
+    def on_tab_close(self, button):
+        self.notebook.remove_page(self.notebook.page_num(self.page))
+
+
+class ErrorWindow(Gtk.Window):
+    def __init__(self, data, ERROR_CODE):
+        self.data= data
+        self.ERROR_CODE=ERROR_CODE
+
+        text_2 = ''
+        if self.ERROR_CODE == ERRORS.DOWNLOAD:
+            text_1 = 'Could not download '+self.data.bibcode
+        elif self.ERROR_CODE == ERRORS.PDF:
+            text_1 = 'Not a valid pdf file for '+self.data.bibcode
+            text_2 = os.path.join(adsdata.pdffolder,self.data.filename)
+
+        dialog = Gtk.MessageDialog(
+            transient_for=self,
+            flags=0,
+            message_type=Gtk.MessageType.INFO,
+            buttons=Gtk.ButtonsType.OK,
+            text=text_1,
+        )
+        dialog.format_secondary_text(text_2)
+        dialog.run()
+        self.add(dialog)
+        
+        self.show_all() 
+        dialog.destroy()
 
 
 def main():
