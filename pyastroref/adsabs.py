@@ -5,7 +5,6 @@ import re
 import requests
 from pathlib import Path
 import ads
-import filetype
 import bibtexparser
 from bibtexparser.bparser import BibTexParser
 import feedparser
@@ -503,19 +502,23 @@ class article(object):
         # vpn working to use a university ip address
         strs = ['/PUB_PDF','/EPRINT_PDF','/ADS_PDF']
 
+        if os.path.exists(filename):
+            return
+
+        print(filename)
         for i in strs:
             url = _urls['pdfs']+str(self.bibcode)+i
+            print(url)
             headers = {'user-agent': 'my-app/0.0.1'}
             r = requests.get(url, allow_redirects=True,headers=headers)
 
+            if r.content.startswith(b'<!DOCTYPE html'): 
+                print('Breaking on html')
+                continue
+
             with open(filename,'wb') as f:
                 f.write(r.content)
-
-            # Check what we got is a pdf and not a text file
-            if filetype.guess(filename).mime == 'application/pdf':
                 break
-
-            os.remove(filename)
 
         if not os.path.exists(filename):
             raise ValueError("Couldn't download file")
