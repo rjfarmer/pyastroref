@@ -263,7 +263,11 @@ class LeftPanel(object):
         if model[iters].parent is not None:
             parent = model[iters].parent[0]
 
-        if row == 'Arxiv':
+        if row == 'Home':
+            def func():
+                return []
+            target = func
+        elif row == 'Arxiv':
             target = adsabs.arxivrss(adsdata.token).articles
         elif row == 'ORCID':
             def func():
@@ -317,19 +321,20 @@ class ShowJournal(object):
 
         self.download()
 
-        self.store.clear()
-        print('clear store',len(self.journal))
-
-        self.make_liststore()
         self.page.show_all()
 
     def download(self):
+        def threader():
+            journal = self.target()
+            self.store.clear()
+            self.journal = journal
+            self.make_liststore()
+
         print('Start downloading data')
-        thread = ThreadWithResult(target=self.target)
+        thread = ThreadWithResult(target=threader)
         thread.daemon = True
         thread.start()
-        thread.join()
-        self.journal = thread.result
+        #thread.join()
         print('End downloading data')
 
     def make_liststore(self):
@@ -425,7 +430,7 @@ class ShowJournal(object):
                 ShowJournal(article.references,self.notebook,'Refs:'+article.name)
             else:
                 print('Show...')
-                p = ShowPDF(article,self._notebook)
+                p = ShowPDF(article,self.notebook)
                 p.add()
 
 
@@ -455,6 +460,8 @@ class ShowPDF(object):
             thread = threading.Thread(target=get_pdf)
             thread.daemon = True
             thread.start()
+        else:
+            self.show()
             
 
     def add(self):
