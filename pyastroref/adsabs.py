@@ -415,6 +415,8 @@ class article(object):
         self.doi = doi
         self.arxiv = arxiv
         self._data = None
+        self._citations=None
+        self._references=None
 
         if data is not None:
             self._data = data
@@ -524,14 +526,18 @@ class article(object):
             raise ValueError("Couldn't download file")
 
     def citations(self):
-        data = list(ads.SearchQuery(q='citations(bibcode:"'+self._bibcode+'")',fl=_fields))
-        bibs = [i.bibcode for i in data]
-        return journal(self.token,bibs,data=data)
+        if self._citations is None:
+            data = list(ads.SearchQuery(q='citations(bibcode:"'+self._bibcode+'")',fl=_fields))
+            bibs = [i.bibcode for i in data]
+            self._citations = journal(self.token,bibs,data=data)
+        return self._citations
 
     def references(self):
-        data = list(ads.SearchQuery(q='references(bibcode:"'+self._bibcode+'")',fl=_fields))
-        bibs = [i.bibcode for i in data]
-        return journal(self.token,bibs,data=data) 
+        if self._references is None:
+            data = list(ads.SearchQuery(q='references(bibcode:"'+self._bibcode+'")',fl=_fields))
+            bibs = [i.bibcode for i in data]
+            self._references = journal(self.token,bibs,data=data) 
+        return self._references 
 
     def bibtex(self,filename=None,text=True):
         data = {'bibcode':[self.bibcode]}
@@ -587,9 +593,7 @@ class search(object):
             return journal(self.token,bibs,data=art._data)
 
         # Proberbly an ads query
-        data = [i.bibcode for i in 
-                list(ads.SearchQuery(q=query,fl=_fields))
-                ]
+        data = list(ads.SearchQuery(q=query,fl=_fields))
         bibs = [i.bibcode for i in data]
         return journal(self.token,bibs,data=data)
 
