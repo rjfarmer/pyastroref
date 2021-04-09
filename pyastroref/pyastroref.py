@@ -263,6 +263,14 @@ class LeftPanel(object):
         if model[iters].parent is not None:
             parent = model[iters].parent[0]
 
+        for p in range(self.notebook.get_n_pages()):
+            page = self.notebook.get_nth_page(p)
+            if row == page.astroref_name:
+                self.notebook.set_current_page(p)
+                self.notebook.show_all()
+                return
+
+
         if row == 'Home':
             def func():
                 return []
@@ -311,6 +319,7 @@ class ShowJournal(object):
 
         # setting up the layout, putting the treeview in a scrollwindow
         self.page = Gtk.ScrolledWindow()
+        self.page.astroref_name = name
         self.page.set_vexpand(True)
         self.page.set_hexpand(True)
         self.page.add(self.treeview)
