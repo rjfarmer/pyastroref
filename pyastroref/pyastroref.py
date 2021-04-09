@@ -115,8 +115,8 @@ class MainWindow(Gtk.Window):
         
         self.right_panel.show_all()
 
-        self.panels.add(self.left_panel.tree)
-        self.panels.add(self.right_panel)
+        self.panels.pack1(self.left_panel.tree,False,False)
+        self.panels.pack2(self.right_panel,True,True)
 
 
     def setup_grid(self):
