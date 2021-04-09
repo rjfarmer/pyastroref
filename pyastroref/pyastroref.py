@@ -104,15 +104,15 @@ class MainWindow(Gtk.Window):
     def setup_panels(self):
         self.panels = Gtk.HPaned()
 
-        self.left_panel = LeftPanel()
-
         self.right_panel = Gtk.Notebook()
         self.right_panel.set_vexpand(True)
         self.right_panel.set_hexpand(True)
 
-        x = adsabs.arxivrss(adsdata.token)
-        label = Gtk.Label('Arxiv')
-        self.right_panel.append_page(ShowJournal(x.articles(),self.right_panel).add(),label)
+        self.left_panel = LeftPanel(self.right_panel)
+        def func():
+            return []
+        ShowJournal(func,self.right_panel, 'Home')
+        
         self.right_panel.show_all()
 
         self.panels.add(self.left_panel.tree)
@@ -225,16 +225,27 @@ class OptionsMenu(Gtk.Window):
         dialog.destroy()
 
 
+        #x = adsabs.arxivrss(adsdata.token)
+        #label = Gtk.Label('Arxiv')
+        #self.right_panel.append_page(ShowJournal(x.articles(),self.right_panel).add(),label)
+
+
 class LeftPanel(object):
-    def __init__(self):
+    def __init__(self, notebook):
         self.store = Gtk.TreeStore(str)
+        self.notebook = notebook
 
         self.store.append(None,['Home'])
+        self.store.append(None,['ORCID'])
         self.store.append(None,['Arxiv'])
-        lib = self.store.append(None,['ADSABS'])
+        lib = self.store.append(None,['Libraries'])
+        self.store.append(lib,[""])
 
-        for l in adsdata.libraries.names():
-            self.store.append(lib,[l])
+        #for l in adsdata.libraries.names():
+        #    self.store.append(lib,[l])
+
+        lib = self.store.append(None,['Journals'])
+        self.store.append(lib,[""])
 
         self.tree = Gtk.TreeView(model=self.store)
 
@@ -242,17 +253,84 @@ class LeftPanel(object):
         column = Gtk.TreeViewColumn("", renderer, text=0)
         self.tree.append_column(column)
 
+        self.tree.get_selection().connect('changed' , self.row_selected)
+
+    def row_selected(self, selection):
+        model, iters = selection.get_selected()
+
+        row = model[iters][0]
+        parent = None
+        if model[iters].parent is not None:
+            parent = model[iters].parent[0]
+
+        if row == 'Arxiv':
+            target = adsabs.arxivrss(adsdata.token).articles
+        elif row == 'ORCID':
+            def func():
+                return adsdata.search('orcid:"'+str(adsdata.orcid) +'"')
+            target = func
+        else:
+            target = None
+
+        if target is not None:
+            ShowJournal(target,self.notebook,row)  
+
+    #connect('row_expanded')
+
 
 class ShowJournal(object):
-    cols = ["Title", "First Author", "Year", "Authors", "Journal", "PDF", "Bibtex"]
-    def __init__(self, journal, notebook):
-        self.journal = journal
-        self._notebook = notebook
+    cols = ["Title", "First Author", "Year", "Authors", "Journal","References", "Citations", "PDF", "Bibtex"]
+    def __init__(self, target, notebook, name):
+        self.target = target
+        self.notebook = notebook
 
         self.store = Gtk.ListStore(*[str]*len(self.cols))
-
+        self.journal = []
         self.make_liststore()
         self.make_treeview()
+
+        header = Gtk.HBox()
+        title_label = Gtk.Label(name)
+        image = Gtk.Image()
+        image.set_from_stock(Gtk.STOCK_CLOSE, Gtk.IconSize.MENU)
+        close_button = Gtk.Button()
+        close_button.set_image(image)
+        close_button.set_relief(Gtk.ReliefStyle.NONE)
+        close_button.connect('clicked', self.on_tab_close)
+
+        header.pack_start(title_label,
+                          expand=True, fill=True, padding=0)
+        header.pack_end(close_button,
+                        expand=False, fill=False, padding=0)
+        self.header = header
+        self.header.show_all()
+
+        # setting up the layout, putting the treeview in a scrollwindow
+        self.page = Gtk.ScrolledWindow()
+        self.page.set_vexpand(True)
+        self.page.set_hexpand(True)
+        self.page.add(self.treeview)
+
+        self.notebook.append_page(self.page, self.header)
+        self.notebook.set_tab_reorderable(self.page, True)
+        self.notebook.show_all()
+
+        self.download()
+
+        self.store.clear()
+        print('clear store',len(self.journal))
+
+        self.make_liststore()
+        self.page.show_all()
+
+    def download(self):
+        print('Start downloading data')
+        thread = ThreadWithResult(target=self.target)
+        thread.daemon = True
+        thread.start()
+        thread.join()
+        self.journal = thread.result
+        print('End downloading data')
 
     def make_liststore(self):
         # Creating the ListStore model
@@ -263,8 +341,8 @@ class ShowJournal(object):
             #    pdficon = 'x-office-document'
 
             authors = paper.authors.split(';')[1:]
-            if len(authors) > 5:
-                authors = authors[0:5]
+            if len(authors) > 3:
+                authors = authors[0:3]
                 authors.append('et al')
             authors = '; '.join([i.strip() for i in authors])
 
@@ -274,6 +352,8 @@ class ShowJournal(object):
                 paper.year,
                 authors,
                 paper.journal,
+                'go-down',
+                'go-down',
                 pdficon,
                 'edit-copy'
             ])
@@ -281,10 +361,11 @@ class ShowJournal(object):
     def make_treeview(self):
         # creating the treeview and adding the columns
         self.treeviewsorted = Gtk.TreeModelSort(model=self.store)
+
         self.treeview = Gtk.TreeView.new_with_model(self.treeviewsorted)
         self.treeview.set_has_tooltip(True)
         for i, column_title in enumerate(self.cols):
-            if column_title == 'PDF' or column_title == 'Bibtex':
+            if column_title in ['PDF','Bibtex','Citations','References']:
                 renderer = Gtk.CellRendererPixbuf()
                 column = Gtk.TreeViewColumn(column_title, renderer, icon_name=i)
                 column.set_expand(False)
@@ -301,33 +382,30 @@ class ShowJournal(object):
 
             self.treeview.append_column(column)
 
-
-        # setting up the layout, putting the treeview in a scrollwindow
-        self.scrollable_treelist = Gtk.ScrolledWindow()
-        self.scrollable_treelist.set_vexpand(True)
-        self.scrollable_treelist.set_hexpand(True)
-
-        self.scrollable_treelist.add(self.treeview)
         #self.treeview.connect('row-activated' , self.button_press_event)
         self.treeview.connect('query-tooltip' , self.tooltip)
         self.treeview.connect('button-press-event' , self.button_press_event)
 
-
-    def add(self):
-        return self.scrollable_treelist
-
     def tooltip(self, widget, x, y, keyboard, tooltip):
-        path = self.treeview.get_path_at_pos(x,y)[0]
+        try:
+            path = self.treeview.get_path_at_pos(x,y)[0]
+        except TypeError:
+            return True
         if path is None:
             return False
         cp = self.treeviewsorted.convert_path_to_child_path(path)
         row = cp.get_indices()[0] 
-        tooltip.set_text(self.journal[row].abstract)
-        self.treeview.set_tooltip_row(tooltip, path)
+        if len(self.journal):
+            tooltip.set_text(self.journal[row].abstract)
+            self.treeview.set_tooltip_row(tooltip, path)
         return True
 
     def button_press_event(self, treeview, event):
-        path,col,_,_ = self.treeview.get_path_at_pos(int(event.x),int(event.y))
+        try:
+            path,col,_,_ = self.treeview.get_path_at_pos(int(event.x),int(event.y))
+        except TypeError:
+            return True
+
         if path is None:
             return False
         cp = self.treeviewsorted.convert_path_to_child_path(path)
@@ -341,10 +419,19 @@ class ShowJournal(object):
                 clipboard(article.bibtex(text=True))
             elif title == "First Author":
                 pass # Search on author
+            elif title == 'Citations':
+                ShowJournal(article.citations,self.notebook,'Cites:'+article.name)
+            elif title == 'References':
+                ShowJournal(article.references,self.notebook,'Refs:'+article.name)
             else:
                 print('Show...')
                 p = ShowPDF(article,self._notebook)
                 p.add()
+
+
+    def on_tab_close(self, button):
+        self.notebook.remove_page(self.notebook.page_num(self.page))
+
 
 
 def clipboard(data):
@@ -392,7 +479,6 @@ class ShowPDF(object):
 
 
         self.page_num = self.notebook.append_page(self.page, self.header)
-        self.notebook.add(self.page)
         self.notebook.set_tab_reorderable(self.page, True)
         self.notebook.show_all()
         print('Start Download')
@@ -449,6 +535,14 @@ class ErrorWindow(Gtk.Window):
         
         self.show_all() 
         dialog.destroy()
+
+class ThreadWithResult(threading.Thread):
+    def __init__(self, group=None, target=None, name=None, args=(), kwargs={}, *, daemon=None):
+        def function():
+            self.result = target(*args, **kwargs)
+        super().__init__(group=group, target=function, name=name, daemon=daemon)
+
+
 
 
 def main():
