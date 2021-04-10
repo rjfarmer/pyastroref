@@ -323,20 +323,23 @@ class ShowJournal(object):
         self.make_liststore()
         self.make_treeview()
 
-        header = Gtk.HBox()
+        self.header = Gtk.HBox()
         title_label = Gtk.Label(name)
         image = Gtk.Image()
         image.set_from_stock(Gtk.STOCK_CLOSE, Gtk.IconSize.MENU)
-        close_button = Gtk.Button()
-        close_button.set_image(image)
-        close_button.set_relief(Gtk.ReliefStyle.NONE)
-        close_button.connect('clicked', self.on_tab_close)
 
-        header.pack_start(title_label,
+        self.close_button = Gtk.Button()
+        self.close_button.set_image(image)
+        self.close_button.set_relief(Gtk.ReliefStyle.NONE)
+        self.close_button.connect('clicked', self.on_tab_close)
+
+        self.spinner = Gtk.Spinner()
+
+        self.header.pack_start(title_label,
                           expand=True, fill=True, padding=0)
-        header.pack_end(close_button,
+        self.header.pack_end(self.spinner,
                         expand=False, fill=False, padding=0)
-        self.header = header
+        self.spinner.start()    
         self.header.show_all()
 
         # setting up the layout, putting the treeview in a scrollwindow
@@ -353,6 +356,12 @@ class ShowJournal(object):
         self.download()
 
         self.page.show_all()
+        self.notebook.show_all()
+        self.spinner.stop()
+        self.header.remove(self.spinner)
+        self.header.pack_end(self.close_button,
+                        expand=False, fill=False, padding=0)
+        self.header.show_all()
 
     def download(self):
         def threader():
@@ -506,7 +515,7 @@ class ShowPDF(object):
         print('Start',self._filename)
         self.page = Gtk.ScrolledWindow()
 
-        header = Gtk.HBox()
+        self.header = Gtk.HBox()
         title_label = Gtk.Label(self.data.name)
         image = Gtk.Image()
         image.set_from_stock(Gtk.STOCK_CLOSE, Gtk.IconSize.MENU)
@@ -514,29 +523,29 @@ class ShowPDF(object):
         title_label.set_has_tooltip(True)
         title_label.connect('query-tooltip' , self.tooltip)
 
-        close_button = Gtk.Button()
-        close_button.set_image(image)
-        close_button.set_relief(Gtk.ReliefStyle.NONE)
-        close_button.connect('clicked', self.on_tab_close)
+        self.close_button = Gtk.Button()
+        self.close_button.set_image(image)
+        self.close_button.set_relief(Gtk.ReliefStyle.NONE)
+        self.close_button.connect('clicked', self.on_tab_close)
 
-        header.pack_start(title_label,
+        self.spinner = Gtk.Spinner()
+
+        self.header.pack_start(title_label,
                           expand=True, fill=True, padding=0)
-        header.pack_end(close_button,
+        self.header.pack_end(self.spinner,
                         expand=False, fill=False, padding=0)
-        self.header = header
+        self.spinner.start()    
         self.header.show_all()
 
 
         self.page_num = self.notebook.append_page(self.page, self.header)
         self.notebook.set_tab_reorderable(self.page, True)
         self.notebook.show_all()
-        print('Start Download')
         try:
             self.download()
         except ValueError:
             #ErrorWindow(self.data,ERRORS.DOWNLOAD)
             return
-        print('End Download',self._filename)
 
 
     def tooltip(self, widget, x, y, keyboard, tooltip):
@@ -560,7 +569,12 @@ class ShowPDF(object):
 
         self.page.show_all()
         self.notebook.show_all()
-        print('Show page')
+        self.spinner.stop()
+        self.header.remove(self.spinner)
+        self.header.pack_end(self.close_button,
+                        expand=False, fill=False, padding=0)
+        self.header.show_all()
+
 
     def on_tab_close(self, button):
         self.notebook.remove_page(self.notebook.page_num(self.page))
