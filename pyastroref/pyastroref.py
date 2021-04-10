@@ -27,6 +27,7 @@ class ERRORS(Enum):
 adsdata=adsabs.adsabs()
 
 adsSearch = adsabs.search(adsdata.token)
+adsJournals = adsabs.JournalData(adsdata.token)
 
 
 class MainWindow(Gtk.Window):
@@ -228,6 +229,9 @@ class LeftPanel(object):
         self._lib = self.store.append(None,['Libraries'])
 
         self._journal = self.store.append(None,['Journals'])
+        for i in adsJournals.list_defaults():
+            self.store.append(self._journal,[adsJournals.default_journals[i]])
+
 
         self._search = self.store.append(None,['Saved searches'])
 
@@ -276,6 +280,10 @@ class LeftPanel(object):
                     bibcodes = adsdata.libraries[row].keys()
                     return adsabs.chunked_search(adsdata.token,bibcodes,'bibcode:')
                 target = func
+            elif parent == 'Journals':
+                def func():
+                    return adsJournals.search(row)
+                target = func
 
         if target is not None:
             ShowJournal(target,self.notebook,row)  
@@ -287,8 +295,7 @@ class LeftPanel(object):
             libs = adsdata.libraries.names()
             for i in libs:
                 self.store.append(self._lib,[i])
-        elif row == 'Journals':
-            pass
+
 
     #connect('row_expanded')
 

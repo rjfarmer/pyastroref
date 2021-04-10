@@ -4,7 +4,6 @@ import os
 import re
 import requests
 import datetime
-import time
 from pathlib import Path
 
 import ads
@@ -739,9 +738,9 @@ class JournalData(object):
         if not os.path.exists(self._file):
             return True
 
-        today = datetime.date.today() - datetime.timedelta(days=7)
-        last_mofidied = datetime.date.fromtimestamp(time.gmtime(_file.gmtime))
-        if last_mofidied < today:
+        last_week = datetime.date.today() - datetime.timedelta(days=7)
+        last_modified = datetime.date.fromtimestamp(self._file.stat().st_mtime)
+        if last_modified < last_week:
             return True
 
         return False
@@ -759,14 +758,14 @@ class JournalData(object):
         
         res = {}
         for line in data:
-            if '<a href="#" onClick=' in line:
+            if line.startswith('<a href="#" onClick='):
                 _, journ_short, name = line.split('>')
                 journ_short = journ_short.split()[0].strip()
                 name = name.strip()
                 res[name] = journ_short
 
         with open(self._file,'w') as f:
-            for key,value in res:
+            for key,value in res.items():
                 print(key,value,file=f)
 
     def read_file(self):
@@ -787,9 +786,13 @@ class JournalData(object):
         return self._data.keys()
 
     def search(self, name):
-        if name not in self._results:
-            journ_short = self._data[name]
+        for key,value in self.default_journals.items():
+            if value == name:
+                break
 
+
+
+        if name not in self._results:
             today = datetime.date.today()
             monthago = today - datetime.timedelta(days=31)
 
@@ -799,7 +802,7 @@ class JournalData(object):
             pubdata+= str(today.year) +"-"+ str(today.month).zfill(2)
             pubdata+=']'
 
-            data = list(ads.SearchQuery(q='bibstem:"'+journ_short+'" AND'+pubdata,
+            data = list(ads.SearchQuery(q='bibstem:"'+name+'" AND '+pubdata,
                     fl=_fields))
 
             bibs = [i.bibcode for i in data]
