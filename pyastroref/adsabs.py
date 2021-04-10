@@ -729,7 +729,8 @@ class JournalData(object):
 
     _file = Path(os.path.join(dirs.user_config_dir,'all_journals'))
 
-    def __init__(self):
+    def __init__(self, token):
+        self.token = token
         self._data = {}
         self._results = {}
         self.update_journals()

@@ -26,6 +26,8 @@ class ERRORS(Enum):
 
 adsdata=adsabs.adsabs()
 
+adsSearch = adsabs.search(adsdata.token)
+
 
 class MainWindow(Gtk.Window):
     def __init__(self):
@@ -407,6 +409,8 @@ class ShowJournal(object):
         self.treeview.connect('button-press-event' , self.button_press_event)
 
     def tooltip(self, widget, x, y, keyboard, tooltip):
+        if not len(self.journal):
+            return False
         try:
             path = self.treeview.get_path_at_pos(x,y)[0]
         except TypeError:
@@ -438,7 +442,10 @@ class ShowJournal(object):
             if title == 'Bibtex':
                 clipboard(article.bibtex(text=True))
             elif title == "First Author":
-                pass # Search on author
+                q = 'author:"^'+article.first_author+'"'
+                def func():
+                    return adsSearch.search(q)
+                ShowJournal(func,self.notebook,q)
             elif title == 'Citations':
                 ShowJournal(article.citations,self.notebook,'Cites:'+article.name)
             elif title == 'References':
