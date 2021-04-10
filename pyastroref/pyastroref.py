@@ -42,6 +42,10 @@ class MainWindow(Gtk.Window):
 
         self.setup_grid()  
 
+        if adsdata.token is None:
+            self.on_click_load_options(None)
+
+
     def setup_headerbar(self):
         self.options_menu()
 
@@ -147,10 +151,13 @@ class OptionsMenu(Gtk.Window):
 
         self.ads_entry = Gtk.Entry()
         self.ads_entry.set_width_chars(50)
-        self.ads_entry.set_text(adsdata.token)
+
+        if adsdata.token is not None:
+            self.ads_entry.set_text(adsdata.token)
 
         self.orcid_entry = Gtk.Entry()
-        self.orcid_entry.set_text(adsdata.orcid)
+        if adsdata.orcid is not None:
+            self.orcid_entry.set_text(adsdata.orcid)
         self.orcid_entry.set_width_chars(50)
 
         label = "Choose Folder"
