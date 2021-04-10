@@ -772,7 +772,9 @@ class JournalData(object):
         self._data = {}
         with open(self._file,'r') as f:
             for line in f.readlines():
-                key, value = line.split()
+                l = line.split()
+                value = l[-1]
+                key = ' '.join(l[:-1])
                 self._data[key.strip()] = value.strip()
 
         # Remove default journals
