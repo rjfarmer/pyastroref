@@ -35,9 +35,9 @@ class MainWindow(Gtk.Window):
 
         Gtk.Window.__init__(self, title="pyAstroRef")
 
-        self.setup_headerbar()
+
         self.setup_search_bar()
-        self.setup_search_loc()
+        self.setup_headerbar()
         self.setup_panels()
 
         self.setup_grid()  
@@ -56,6 +56,8 @@ class MainWindow(Gtk.Window):
 
         hb.pack_start(self.button_opt)
 
+        hb.pack_start(self.search)
+
 
     def on_click_load_options(self, button):
         win = OptionsMenu()
@@ -72,30 +74,12 @@ class MainWindow(Gtk.Window):
 
     def setup_search_bar(self):
         self.search = Gtk.SearchEntry()
-        self.search.set_width_chars(100)
+        #self.search.set_width_chars(100)
         self.search.connect("activate",self.on_click_search)
 
         self.search.set_can_default(True)
         self.set_default(self.search)
         self.search.set_hexpand(True)
-
-    def setup_search_loc(self):
-        search_locs = ['ADSABS','Local']
-
-        self.search_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-
-        combo = Gtk.ComboBoxText()
-        combo.set_entry_text_column(0)
-        combo.connect('changed', self.on_search_loc_change)
-        for i in search_locs:
-            combo.append_text(i)
-        
-        combo.set_active(0)
-        self.search_box.pack_start(combo, False, False, True)
-
-    def on_search_loc_change(self, combo):
-       adsdata.search_source = combo.get_active_text()
-
 
     def on_click_search(self, button):
         query = self.search.get_text()
@@ -129,15 +113,6 @@ class MainWindow(Gtk.Window):
 
         self.add(self.grid)
 
-        self.gridS = Gtk.Grid()
-
-
-        self.gridS.add(self.search)
-
-        self.gridS.attach_next_to(self.search_box,self.search,
-                                Gtk.PositionType.LEFT,1,1)
-
-        self.grid.add(self.gridS)
         self.grid.add(self.panels)
 
 
@@ -297,11 +272,14 @@ class LeftPanel(object):
             ShowJournal(target,self.notebook,row)  
             return
 
+        # Things that need thier data fetching when we expand thier row
+
         if row == 'Libraries':
             libs = adsdata.libraries.names()
             for i in libs:
                 self.store.append(self._lib,[i])
-
+        elif row == 'Journals':
+            pass
 
     #connect('row_expanded')
 
