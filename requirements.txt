@@ -1,7 +1,5 @@
+pycairo
+PyGObject
 ads
-gi
-appdirs
 feedparser
-sqlite3
 bibtexparser
-filetype
