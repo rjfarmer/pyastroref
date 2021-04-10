@@ -45,7 +45,7 @@ class MainWindow(Gtk.Window):
         self.setup_grid()  
 
         if adsdata.token is None:
-            self.on_click_load_options(None)
+            ShowOptionsMenu()
 
 
     def setup_headerbar(self):
@@ -62,9 +62,7 @@ class MainWindow(Gtk.Window):
 
 
     def on_click_load_options(self, button):
-        win = OptionsMenu()
-        win.set_position(Gtk.WindowPosition.CENTER)
-        win.show_all()
+        ShowOptionsMenu()
 
     def options_menu(self):
         self.button_opt = Gtk.Button()
@@ -117,6 +115,11 @@ class MainWindow(Gtk.Window):
 
         self.grid.add(self.panels)
 
+
+def ShowOptionsMenu():
+    win = OptionsMenu()
+    win.set_position(Gtk.WindowPosition.CENTER)
+    win.show_all()
 
 
 class OptionsMenu(Gtk.Window):
@@ -260,6 +263,10 @@ class LeftPanel(object):
         elif row == 'Arxiv':
             target = adsabs.arxivrss(adsdata.token).articles
         elif row == 'ORCID':
+            if adsdata.orcid is None:
+                ShowOptionsMenu()
+                return
+
             def func():
                 return adsdata.search('orcid:"'+str(adsdata.orcid) +'"')
             target = func
@@ -471,6 +478,8 @@ class ShowPDF(object):
         self.data = data
         self.notebook = notebook
 
+        if adsdata.pdffolder is None:
+            ShowOptionsMenu()
         self._filename = os.path.join(adsdata.pdffolder,self.data.filename)
 
     def download(self):
