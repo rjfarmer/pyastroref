@@ -245,14 +245,11 @@ class LeftPanel(object):
         self.store.append(None,['Home'])
         self.store.append(None,['ORCID'])
         self.store.append(None,['Arxiv'])
-        lib = self.store.append(None,['Libraries'])
-        self.store.append(lib,[""])
+        self._lib = self.store.append(None,['Libraries'])
 
-        lib = self.store.append(None,['Journals'])
-        self.store.append(lib,[""])
+        self._journal = self.store.append(None,['Journals'])
 
-        lib = self.store.append(None,['Saved searches'])
-        self.store.append(lib,[""])
+        self._search = self.store.append(None,['Saved searches'])
 
 
         self.tree = Gtk.TreeView(model=self.store)
@@ -278,7 +275,7 @@ class LeftPanel(object):
                 self.notebook.show_all()
                 return
 
-
+        target = None       
         if row == 'Home':
             def func():
                 return []
@@ -289,13 +286,25 @@ class LeftPanel(object):
             def func():
                 return adsdata.search('orcid:"'+str(adsdata.orcid) +'"')
             target = func
-        else:
-            target = None
+        elif parent is not None:
+            if parent == 'Libraries':
+                def func():
+                    bibcodes = adsdata.libraries[row].keys()
+                    return adsabs.chunked_search(adsdata.token,bibcodes,'bibcode:')
+                target = func
 
         if target is not None:
             ShowJournal(target,self.notebook,row)  
+            return
+
+        if row == 'Libraries':
+            libs = adsdata.libraries.names()
+            for i in libs:
+                self.store.append(self._lib,[i])
+
 
     #connect('row_expanded')
+
 
 
 class Search(object):

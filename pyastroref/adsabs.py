@@ -4,6 +4,7 @@ import os
 import re
 import requests
 import datetime
+import time
 from pathlib import Path
 
 import ads
@@ -57,7 +58,7 @@ class _BearerAuth(requests.auth.AuthBase):
 def _ensure_list(s):
     return s if isinstance(s, list) else [s]
 
-def _chunked_join(data,prefix='',joiner='',nmax=50):
+def _chunked_join(data,prefix='',joiner='',nmax=40):
     '''
     Breaks data into chunks of maxium size nmax
 
@@ -334,6 +335,8 @@ class library(object):
         # Error check:
         if 'number_removed' not in r:
             raise ValueError(r['message'])
+
+
 
 
     def __len__(self):
@@ -682,6 +685,20 @@ class search(object):
         return res
 
 
+def chunked_search(token,ids,prefix):
+        # Break up data into chunks to process otherwise we max at 50 entries:
+        query = _chunked_join(ids,prefix=prefix,joiner=' OR ')
+
+        sdata = []
+        for i in query:
+            sdata.append(list(ads.SearchQuery(q=i,fl=_fields)))
+
+        data = [item for sublist in sdata for item in sublist]
+
+        bibs = [i.bibcode for i in data]
+        return journal(token,bibcodes=bibs,data=data)
+
+
 
 class arxivrss(object):
     def __init__(self, token):
@@ -692,17 +709,7 @@ class arxivrss(object):
     def articles(self):
         arxiv_ids = [i['id'].split('/')[-1] for i in self._feed['entries']]
 
-        # Break up data into chunks to process otherwise we max at 50 entries:
-        query = _chunked_join(arxiv_ids,prefix='identifier:',joiner=' OR ')
-
-        sdata = []
-        for i in query:
-            sdata.append(list(ads.SearchQuery(q=i,fl=_fields)))
-
-        data = [item for sublist in sdata for item in sublist]
-
-        bibs = [i.bibcode for i in data]
-        return journal(self.token,bibcodes=bibs,data=data)
+        return chunked_search(self.token,arxiv_ids,'identifier:')
 
 
 class JournalData(object):
