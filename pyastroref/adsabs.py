@@ -3,7 +3,9 @@
 import os
 import re
 import requests
+import datetime
 from pathlib import Path
+
 import ads
 import bibtexparser
 from bibtexparser.bparser import BibTexParser
@@ -703,9 +705,96 @@ class arxivrss(object):
         return journal(self.token,bibcodes=bibs,data=data)
 
 
+class JournalData(object):
+    _url = 'http://adsabs.harvard.edu/abs_doc/journals1.html'
 
-# a=adsabs()
-# x=arxivrss(a.token)
-# xx=x.articles()
+    default_journals = {
+        'Astronomy and Astrophysics':'A&A',
+        'Astronomy and Astrophysics Supplement Series':'A&AS',
+        'The Astrophysical Journal':'ApJ',
+        'The Astrophysical Journal Supplement Series':'ApJS',
+        'Astrophysical Letters': 'ApL',
+        'Monthly Notices of the Royal Astronomical Society':'MNRAS',
+        'Nature':'Natur',
+        'Nature Astronomy':'NatAs',
+        'Science':'Sci'
+    }
 
-# print(len(xx))
+    _file = Path(os.path.join(dirs.user_config_dir,'all_journals'))
+
+    def __init__(self):
+        self._data = {}
+        self._results = {}
+        self.update_journals()
+
+    def if_update_journal(self):
+        if not os.path.exists(self._file):
+            return True
+
+        today = datetime.date.today() - datetime.timedelta(days=7)
+        last_mofidied = datetime.date.fromtimestamp(time.gmtime(_file.gmtime))
+        if last_mofidied < today:
+            return True
+
+        return False
+
+    def update_journals(self):
+        if self.if_update_journal():
+            self.make_file()
+
+        self.read_file()
+
+
+    def make_file(self):
+        r = requests.get(self._url)
+        data = r.content.decode().split('\n')
+        
+        res = {}
+        for line in data:
+            if '<a href="#" onClick=' in line:
+                _, journ_short, name = line.split('>')
+                journ_short = journ_short.split()[0].strip()
+                name = name.strip()
+                res[name] = journ_short
+
+        with open(self._file,'w') as f:
+            for key,value in res:
+                print(key,value,file=f)
+
+    def read_file(self):
+        self._data = {}
+        with open(self._file,'r') as f:
+            for line in f.readlines():
+                key, value = line.split()
+                self._data[key.strip()] = value.strip()
+
+        # Remove default journals
+        for k in self.default_journals.keys():
+            self._data.pop(k, None)
+
+    def list_defaults(self):
+        return self.default_journals.keys()
+
+    def list_all(self):
+        return self._data.keys()
+
+    def search(self, name):
+        if name not in self._results:
+            journ_short = self._data[name]
+
+            today = datetime.date.today()
+            monthago = today - datetime.timedelta(days=31)
+
+            pubdata = "pubdate:["
+            pubdata+= str(monthago.year) +"-"+ str(monthago.month).zfill(2)
+            pubdata+= ' TO '
+            pubdata+= str(today.year) +"-"+ str(today.month).zfill(2)
+            pubdata+=']'
+
+            data = list(ads.SearchQuery(q='bibstem:"'+journ_short+'" AND'+pubdata,
+                    fl=_fields))
+
+            bibs = [i.bibcode for i in data]
+            self._results[name] = journal(self.token,bibs,data=data)
+
+        return self._results[name]
