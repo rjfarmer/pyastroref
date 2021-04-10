@@ -30,12 +30,12 @@ pyastroref
 
 ## ADS Key
 
-You will your own ADS api key: https://ui.adsabs.harvard.edu/user/settings/token
+You will need your own ADS api key: https://ui.adsabs.harvard.edu/user/settings/token
 
 This can either be saved to a file:
 ```
 ~/.ads/dev_key
 ```
 
-Or set in the options menu of pyastroref
+Or it can be set in the options menu.
 
