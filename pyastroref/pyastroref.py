@@ -76,6 +76,7 @@ class MainWindow(Gtk.Window):
     def setup_search_bar(self):
         self.search = Gtk.SearchEntry()
         #self.search.set_width_chars(100)
+        self.search.set_placeholder_text('Search ADS ...')
         self.search.connect("activate",self.on_click_search)
 
         self.search.set_can_default(True)

@@ -44,6 +44,24 @@ _fields = ['bibcode','title','author','year','abstract','year',
             'pubdate','bibstem','alternate_bibcode','citation_count',
             ]
 
+search_words = '''abs abstract ack aff aff_id alternate_bibcode alternative_title arXiv arxiv_class author author_count
+                 bibcode bigroup bibstem body 
+                 citation_count copyright 
+                 data database pubdate doctype doi
+                 full
+                 grant
+                 identifier inst issue 
+                 keyword
+                 lang
+                 object orcid orcid_user orcid_other
+                 page property
+                 read_count
+                 title
+                 vizier volume
+                 year
+                '''.split()
+
+
 # Handles setting the ADS dev token during a request call
 # Use as requests.get(url,auth=_BearerAuth(ADS_TOKEN)
 class _BearerAuth(requests.auth.AuthBase):
