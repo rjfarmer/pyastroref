@@ -103,12 +103,12 @@ class MainWindow(Gtk.Window):
         if len(query) == 0:
             return
 
-        print(query)
+        Search(query, self.right_panel)
 
     def setup_panels(self):
         self.panels = Gtk.HPaned()
 
-        self.right_panel = Gtk.Notebook()
+        self.right_panel = Gtk.Notebook(scrollable=True)
         self.right_panel.set_vexpand(True)
         self.right_panel.set_hexpand(True)
 
@@ -248,11 +248,12 @@ class LeftPanel(object):
         lib = self.store.append(None,['Libraries'])
         self.store.append(lib,[""])
 
-        #for l in adsdata.libraries.names():
-        #    self.store.append(lib,[l])
-
         lib = self.store.append(None,['Journals'])
         self.store.append(lib,[""])
+
+        lib = self.store.append(None,['Saved searches'])
+        self.store.append(lib,[""])
+
 
         self.tree = Gtk.TreeView(model=self.store)
 
@@ -295,6 +296,17 @@ class LeftPanel(object):
             ShowJournal(target,self.notebook,row)  
 
     #connect('row_expanded')
+
+
+class Search(object):
+    def __init__(self, query, notebook):
+        self._query = query
+        self.notebook = notebook
+
+        def target():
+            return adsdata.search(query)
+
+        ShowJournal(target,self.notebook,query)  
 
 
 class ShowJournal(object):
@@ -488,6 +500,10 @@ class ShowPDF(object):
         title_label = Gtk.Label(self.data.name)
         image = Gtk.Image()
         image.set_from_stock(Gtk.STOCK_CLOSE, Gtk.IconSize.MENU)
+
+        title_label.set_has_tooltip(True)
+        title_label.connect('query-tooltip' , self.tooltip)
+
         close_button = Gtk.Button()
         close_button.set_image(image)
         close_button.set_relief(Gtk.ReliefStyle.NONE)
@@ -511,6 +527,13 @@ class ShowPDF(object):
             #ErrorWindow(self.data,ERRORS.DOWNLOAD)
             return
         print('End Download',self._filename)
+
+
+    def tooltip(self, widget, x, y, keyboard, tooltip):
+        tooltip.set_text(self.data.title)
+
+        return True
+
 
     def show(self):
         print('Start show')
