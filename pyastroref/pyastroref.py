@@ -57,7 +57,7 @@ class MainWindow(Gtk.Window):
         hb.props.title = "pyAstroRef"
         self.set_titlebar(hb)
 
-        hb.pack_start(self.button_opt)
+        hb.pack_end(self.button_opt)
 
         hb.pack_start(self.search)
 
