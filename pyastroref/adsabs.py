@@ -75,7 +75,7 @@ class _BearerAuth(requests.auth.AuthBase):
 def _ensure_list(s):
     return s if isinstance(s, list) else [s]
 
-def _chunked_join(data,prefix='',joiner='',nmax=40):
+def _chunked_join(data,prefix='',joiner='',nmax=20):
     '''
     Breaks data into chunks of maxium size nmax
 
@@ -97,6 +97,7 @@ def _chunked_join(data,prefix='',joiner='',nmax=40):
     for pos in range(0, len(data), nmax):
         x = [prefix+j for j in data[pos:pos + nmax]]
         res.append(joiner.join(x))
+
     return res
 
 
@@ -297,12 +298,12 @@ class library(object):
         self.update()
         self._n = 0
 
-    def url(self, base):
-        return base + '/' + self.libraryid
+    def url(self):
+        return _urls['libraries'] + '/' + self.libraryid
 
 
     def update(self):
-        data = requests.get(self.url(_urls['libraries']),
+        data = requests.get(self.url(),
                             auth=_BearerAuth(self.token)
                             ).json()
         self.docs = data['documents']
@@ -310,6 +311,7 @@ class library(object):
         self.name = self.metadata['name']
 
     def keys(self):
+        print('**',len(self.docs),self.metadata)
         return self.docs
 
     def __getitem__(self,key):
@@ -539,7 +541,10 @@ class article(object):
             url = _urls['pdfs']+str(self.bibcode)+i
             print(url)
             headers = {'user-agent': 'my-app/0.0.1'}
-            r = requests.get(url, allow_redirects=True,headers=headers)
+            try:
+                r = requests.get(url, allow_redirects=True,headers=headers)
+            except:
+                raise ValueError("Couldn't download file")
 
             if r.content.startswith(b'<!DOCTYPE html'): 
                 print('Breaking on html')
@@ -705,10 +710,10 @@ class search(object):
 def chunked_search(token,ids,prefix):
         # Break up data into chunks to process otherwise we max at 50 entries:
         query = _chunked_join(ids,prefix=prefix,joiner=' OR ')
-
         sdata = []
         for i in query:
             sdata.append(list(ads.SearchQuery(q=i,fl=_fields)))
+            print('*',len(ids),len(sdata[-1]))
 
         data = [item for sublist in sdata for item in sublist]
 
@@ -729,6 +734,7 @@ class arxivrss(object):
             self._feed = feedparser.parse(self.url)
             arxiv_ids = [i['id'].split('/')[-1] for i in self._feed['entries']]
             self._data = chunked_search(self.token,arxiv_ids,'identifier:')
+            print(len(self._data))
 
         return self._data
 

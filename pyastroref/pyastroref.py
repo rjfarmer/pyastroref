@@ -278,6 +278,7 @@ class LeftPanel(object):
         elif parent is not None:
             if parent == 'Libraries':
                 def func():
+                    print(len(adsdata.libraries[row].keys()))
                     bibcodes = adsdata.libraries[row].keys()
                     return adsabs.chunked_search(adsdata.token,bibcodes,'bibcode:')
                 target = func
@@ -334,6 +335,18 @@ class ShowJournal(object):
         self.close_button.set_relief(Gtk.ReliefStyle.NONE)
         self.close_button.connect('clicked', self.on_tab_close)
 
+        self.menu = Gtk.Menu()
+        menuitem = Gtk.MenuItem("Test1")
+        self.menu.append(menuitem)
+        menuitem.show()
+        menuitem = Gtk.MenuItem("Test2")
+        menuitem.show()
+        self.menu.append(menuitem)
+
+        self.header.connect_object('event', self.on_pop_menu, self.menu)
+
+
+
         self.spinner = Gtk.Spinner()
 
         self.header.pack_start(title_label,
@@ -363,6 +376,14 @@ class ShowJournal(object):
         self.header.pack_end(self.close_button,
                         expand=False, fill=False, padding=0)
         self.header.show_all()
+
+
+    def on_pop_menu(self, widget, event):
+        print('Right click a')
+        if event.type == Gdk.BUTTON_PRESS and event.button == Gdk.BUTTON_SECONDARY:
+            print('Right click?')
+            widget.popup(None, None, None, None, event.button, event.time)
+
 
     def download(self):
         def threader():
@@ -501,8 +522,11 @@ class ShowPDF(object):
 
     def download(self):
         def get_pdf():
-            self.data.pdf(self._filename)
-            GLib.idle_add(self.show)
+            try:
+                self.data.pdf(self._filename)
+                GLib.idle_add(self.show)
+            except:
+                pass
 
         if not os.path.exists(self._filename):
             thread = threading.Thread(target=get_pdf)
@@ -542,11 +566,13 @@ class ShowPDF(object):
         self.page_num = self.notebook.append_page(self.page, self.header)
         self.notebook.set_tab_reorderable(self.page, True)
         self.notebook.show_all()
+
         try:
             self.download()
         except ValueError:
-            #ErrorWindow(self.data,ERRORS.DOWNLOAD)
-            return
+            pass
+
+        self.stop_spiner()
 
 
     def tooltip(self, widget, x, y, keyboard, tooltip):
@@ -570,6 +596,9 @@ class ShowPDF(object):
 
         self.page.show_all()
         self.notebook.show_all()
+
+
+    def stop_spiner(self):
         self.spinner.stop()
         self.header.remove(self.spinner)
         self.header.pack_end(self.close_button,
