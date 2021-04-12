@@ -720,13 +720,17 @@ def chunked_search(token,ids,prefix):
 class arxivrss(object):
     def __init__(self, token):
         self.url = 'http://export.arxiv.org/rss/astro-ph'
-        self._feed = feedparser.parse(self.url)
+        self._feed = None
         self.token = token
+        self._data = []
 
     def articles(self):
-        arxiv_ids = [i['id'].split('/')[-1] for i in self._feed['entries']]
+        if self._feed is None:
+            self._feed = feedparser.parse(self.url)
+            arxiv_ids = [i['id'].split('/')[-1] for i in self._feed['entries']]
+            self._data = chunked_search(self.token,arxiv_ids,'identifier:')
 
-        return chunked_search(self.token,arxiv_ids,'identifier:')
+        return self._data
 
 
 class JournalData(object):

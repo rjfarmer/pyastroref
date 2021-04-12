@@ -367,9 +367,9 @@ class ShowJournal(object):
     def download(self):
         def threader():
             journal = self.target()
-            self.store.clear()
+            GLib.idle_add(self.store.clear)
             self.journal = journal
-            self.make_liststore()
+            GLib.idle_add(self.make_liststore)
 
         print('Start downloading data')
         thread = ThreadWithResult(target=threader)
@@ -502,7 +502,7 @@ class ShowPDF(object):
     def download(self):
         def get_pdf():
             self.data.pdf(self._filename)
-            self.show()
+            GLib.idle_add(self.show)
 
         if not os.path.exists(self._filename):
             thread = threading.Thread(target=get_pdf)
