@@ -325,6 +325,13 @@ class ShowJournal(object):
         self.make_liststore()
         self.make_treeview()
 
+        # setting up the layout, putting the treeview in a scrollwindow
+        self.page = Gtk.ScrolledWindow()
+        self.page.astroref_name = name
+        self.page.set_vexpand(True)
+        self.page.set_hexpand(True)
+        self.page.add(self.treeview)
+
         self.header = Gtk.HBox()
         title_label = Gtk.Label(name)
         image = Gtk.Image()
@@ -345,8 +352,6 @@ class ShowJournal(object):
 
         self.header.connect_object('event', self.on_pop_menu, self.menu)
 
-
-
         self.spinner = Gtk.Spinner()
 
         self.header.pack_start(title_label,
@@ -356,12 +361,6 @@ class ShowJournal(object):
         self.spinner.start()    
         self.header.show_all()
 
-        # setting up the layout, putting the treeview in a scrollwindow
-        self.page = Gtk.ScrolledWindow()
-        self.page.astroref_name = name
-        self.page.set_vexpand(True)
-        self.page.set_hexpand(True)
-        self.page.add(self.treeview)
 
         self.notebook.append_page(self.page, self.header)
         self.notebook.set_tab_reorderable(self.page, True)
@@ -515,9 +514,13 @@ class ShowPDF(object):
     def __init__(self, data, notebook):
         self.data = data
         self.notebook = notebook
+        self.spinner = Gtk.Spinner()
+        self.header = Gtk.HBox()
+
 
         if adsdata.pdffolder is None:
             ShowOptionsMenu()
+
         self._filename = os.path.join(adsdata.pdffolder,self.data.filename)
 
     def download(self):
@@ -527,6 +530,7 @@ class ShowPDF(object):
                 GLib.idle_add(self.show)
             except:
                 pass
+            GLib.idle_add(self.stop_spiner)
 
         if not os.path.exists(self._filename):
             thread = threading.Thread(target=get_pdf)
@@ -534,13 +538,23 @@ class ShowPDF(object):
             thread.start()
         else:
             self.show()
+            self.stop_spiner()
             
 
     def add(self):
         print('Start',self._filename)
-        self.page = Gtk.ScrolledWindow()
 
-        self.header = Gtk.HBox()
+        for p in range(self.notebook.get_n_pages()):
+            page = self.notebook.get_nth_page(p)
+            if self.data.bibcode == page.astroref_name:
+                self.notebook.set_current_page(p)
+                self.notebook.show_all()
+                self.stop_spiner()
+                return
+
+        self.page = Gtk.ScrolledWindow()
+        self.page.astroref_name = self.data.bibcode
+
         title_label = Gtk.Label(self.data.name)
         image = Gtk.Image()
         image.set_from_stock(Gtk.STOCK_CLOSE, Gtk.IconSize.MENU)
@@ -552,8 +566,6 @@ class ShowPDF(object):
         self.close_button.set_image(image)
         self.close_button.set_relief(Gtk.ReliefStyle.NONE)
         self.close_button.connect('clicked', self.on_tab_close)
-
-        self.spinner = Gtk.Spinner()
 
         self.header.pack_start(title_label,
                           expand=True, fill=True, padding=0)
@@ -571,8 +583,6 @@ class ShowPDF(object):
             self.download()
         except ValueError:
             pass
-
-        self.stop_spiner()
 
 
     def tooltip(self, widget, x, y, keyboard, tooltip):
