@@ -39,3 +39,7 @@ This can either be saved to a file:
 
 Or it can be set in the options menu.
 
+
+## Acknowledgements
+
+Thank you to arXiv for use of its open access interoperability.

@@ -733,6 +733,12 @@ class arxivrss(object):
         if self._feed is None:
             self._feed = feedparser.parse(self.url)
             arxiv_ids = [i['id'].split('/')[-1] for i in self._feed['entries']]
+
+            # Filter resubmissions out
+            today=datetime.date.today()
+            thismonth = str(today.year-2000)+str(today.month).zfill(2)
+            arxiv_ids = [i for i in arxiv_ids if i.startswith(thismonth)]
+
             self._data = chunked_search(self.token,arxiv_ids,'identifier:')
             print(len(self._data))
 
@@ -744,10 +750,8 @@ class JournalData(object):
 
     default_journals = {
         'Astronomy and Astrophysics':'A&A',
-        'Astronomy and Astrophysics Supplement Series':'A&AS',
         'The Astrophysical Journal':'ApJ',
         'The Astrophysical Journal Supplement Series':'ApJS',
-        'Astrophysical Letters': 'ApL',
         'Monthly Notices of the Royal Astronomical Society':'MNRAS',
         'Nature':'Natur',
         'Nature Astronomy':'NatAs',
