@@ -543,18 +543,24 @@ class article(object):
             if i.startswith('arXiv:'):
                 arxiv_id = i.replace('arXiv:','')
 
-        return 'https://arxiv.org/abs/'+arxiv_id
+        if arxiv_id is not None:
+            return 'https://arxiv.org/abs/'+arxiv_id
+        else:
+            return ''
 
     @property
     def journal_url(self):
         if self._data is None:
             self.search()
+        print(self._data.identifier)
+        doi = None
         for i in self._data.identifier:
             if i.startswith('10.'):
                 doi = i
-
-        return  'https://doi.org/'+doi
-
+        if doi is not None:
+            return  'https://doi.org/'+doi
+        else:
+            return ''
 
     @property
     def citation_count(self):
@@ -649,12 +655,11 @@ class search(object):
     def search(self, query):
         # Check if url?
         res = self._process_url(query)
-
         if len(res):
             # A url
             art = article(self.token, **res)# Either bibcode, doi or arxiv id
             bibs = [art.bibcode]
-            return journal(self.token,bibs,data=art._data)
+            return journal(self.token,bibs,data=[art._data])
 
         # Is it a bibtex?
         res = self._process_bibtex(query)
@@ -662,7 +667,7 @@ class search(object):
             # A bibtex
             art = article(self.token, **res)# Either bibcode, doi or arxiv id
             bibs = [art.bibcode]
-            return journal(self.token,bibs,data=art._data)
+            return journal(self.token,bibs,data=[art._data])
 
         # Proberbly an ads query
         data = list(ads.SearchQuery(q=query,fl=_fields))
@@ -693,7 +698,7 @@ class search(object):
         '''
 
         res = {}
-        headers = {'user-agent': 'my-app/0.0.1'}
+        headers = {'user-agent': 'Mozilla /5.0 (Windows NT 10.0; Win64; x64)'}
 
         if 'adsabs.harvard.edu' in url: # ADSABS
             q = url.split('/')

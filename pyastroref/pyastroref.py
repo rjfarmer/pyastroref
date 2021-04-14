@@ -652,11 +652,13 @@ class PDFPopupWindow(Gtk.EventBox):
         self.button['open_ads'] = Gtk.LinkButton(self.data.ads_url,label='Open ADS')
         vbox.pack_start(self.button['open_ads'], False, True, 0)
 
-        self.button['open_arxiv'] = Gtk.LinkButton(self.data.arxiv_url,label='Open Arxiv')
-        vbox.pack_start(self.button['open_arxiv'], False, True, 0)
+        if len(self.data.arxiv_url):
+            self.button['open_arxiv'] = Gtk.LinkButton(self.data.arxiv_url,label='Open Arxiv')
+            vbox.pack_start(self.button['open_arxiv'], False, True, 0)
 
-        self.button['open_journal'] = Gtk.LinkButton(self.data.journal_url,label='Open '+self.data.journal)
-        vbox.pack_start(self.button['open_journal'], False, True, 0)
+        if len(self.data.journal_url):
+            self.button['open_journal'] = Gtk.LinkButton(self.data.journal_url,label='Open '+self.data.journal)
+            vbox.pack_start(self.button['open_journal'], False, True, 0)
         vbox.pack_start(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL), False, True, 10)
 
         self.button['copy_bibtex'] = Gtk.Button.new_with_label("Copy Bibtex")
