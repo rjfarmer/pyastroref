@@ -584,7 +584,8 @@ class article(object):
         for i in strs:
             url = _urls['pdfs']+str(self.bibcode)+i
             print(url)
-            headers = {'user-agent': 'my-app/0.0.1'}
+            # Pretend to be Firefox otherwise we hit captchas
+            headers = {'user-agent': 'Mozilla /5.0 (Windows NT 10.0; Win64; x64)'}
             try:
                 r = requests.get(url, allow_redirects=True,headers=headers)
             except:
