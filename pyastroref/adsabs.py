@@ -447,6 +447,7 @@ class article(object):
         self._data = None
         self._citations=None
         self._references=None
+        self.which_file=None
 
         if data is not None:
             self._data = data
@@ -570,7 +571,6 @@ class article(object):
         else:
             return len(self._data.reference)
     
-
     def pdf(self, filename):
         # There are multiple possible locations for the pdf
         # Try to avoid the journal links as that usally needs a 
@@ -597,6 +597,7 @@ class article(object):
 
             with open(filename,'wb') as f:
                 f.write(r.content)
+                self.which_file = i
                 break
 
         if not os.path.exists(filename):
