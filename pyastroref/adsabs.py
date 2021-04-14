@@ -41,7 +41,8 @@ _urls = {
 
 # Default ADS search fields
 _fields = ['bibcode','title','author','year','abstract','year',
-            'pubdate','bibstem','alternate_bibcode','citation_count',
+            'pubdate','bibstem','alternate_bibcode','citation_count','identifier',
+            'reference'
             ]
 
 search_words = '''abs abstract ack aff aff_id alternate_bibcode alternative_title arXiv arxiv_class author author_count
@@ -527,6 +528,49 @@ class article(object):
             self.search()
         return self.first_author + ' ' + self.year
 
+    @property
+    def ads_url(self):
+        if self._data is None:
+            self.search()
+        return 'https://ui.adsabs.harvard.edu/abs/'+self.bibcode
+
+    @property
+    def arxiv_url(self):
+        if self._data is None:
+            self.search()
+        for i in self._data.identifier:
+            if i.startswith('arXiv:'):
+                arxiv_id = i.replace('arXiv:','')
+
+        return 'https://arxiv.org/abs/'+arxiv_id
+
+    @property
+    def journal_url(self):
+        if self._data is None:
+            self.search()
+        for i in self._data.identifier:
+            if i.startswith('10.'):
+                doi = i
+
+        return  'https://doi.org/'+doi
+
+
+    @property
+    def citation_count(self):
+        if self._data is None:
+            self.search()
+        return self._data.citation_count
+
+    @property
+    def reference_count(self):
+        if self._data is None:
+            self.search()
+        if self._data.reference is None:
+            return 0
+        else:
+            return len(self._data.reference)
+    
+
     def pdf(self, filename):
         # There are multiple possible locations for the pdf
         # Try to avoid the journal links as that usally needs a 
@@ -566,9 +610,7 @@ class article(object):
 
     def references(self):
         if self._references is None:
-            data = list(ads.SearchQuery(q='references(bibcode:"'+self._bibcode+'")',fl=_fields))
-            bibs = [i.bibcode for i in data]
-            self._references = journal(self.token,bibs,data=data) 
+            self._references = journal(self.token,self._data.reference) 
         return self._references 
 
     def bibtex(self,filename=None,text=True):
@@ -590,10 +632,6 @@ class article(object):
         else:
             bp = BibTexParser(interpolate_strings=False)
             return bibtexparser.loads(r['export'],parser=bp)
-
-
-    #def __repr__(self):
-    #    return self.bibcode
 
     def __str__(self):
         return self.name
@@ -823,8 +861,6 @@ class JournalData(object):
         for key,value in self.default_journals.items():
             if value == name:
                 break
-
-
 
         if name not in self._results:
             today = datetime.date.today()

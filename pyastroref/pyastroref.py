@@ -418,8 +418,8 @@ class ShowJournal(object):
                 paper.year,
                 authors,
                 paper.journal,
-                'go-down',
-                'go-down',
+                str(paper.reference_count),
+                str(paper.citation_count),
                 pdficon,
                 'edit-copy'
             ])
@@ -431,7 +431,7 @@ class ShowJournal(object):
         self.treeview = Gtk.TreeView.new_with_model(self.treeviewsorted)
         self.treeview.set_has_tooltip(True)
         for i, column_title in enumerate(self.cols):
-            if column_title in ['PDF','Bibtex','Citations','References']:
+            if column_title in ['PDF','Bibtex']:
                 renderer = Gtk.CellRendererPixbuf()
                 column = Gtk.TreeViewColumn(column_title, renderer, icon_name=i)
                 column.set_expand(False)
@@ -514,9 +514,11 @@ class ShowPDF(object):
     def __init__(self, data, notebook):
         self.data = data
         self.notebook = notebook
-        self.spinner = Gtk.Spinner()
-        self.header = Gtk.HBox()
 
+        self.page = Gtk.ScrolledWindow()
+        self.page.astroref_name = self.data.bibcode
+
+        self.header = PDFPopupWindow(self.notebook, self.page, self.data)
 
         if adsdata.pdffolder is None:
             ShowOptionsMenu()
@@ -530,7 +532,6 @@ class ShowPDF(object):
                 GLib.idle_add(self.show)
             except:
                 pass
-            GLib.idle_add(self.stop_spiner)
 
         if not os.path.exists(self._filename):
             thread = threading.Thread(target=get_pdf)
@@ -538,7 +539,6 @@ class ShowPDF(object):
             thread.start()
         else:
             self.show()
-            self.stop_spiner()
             
 
     def add(self):
@@ -549,30 +549,7 @@ class ShowPDF(object):
             if self.data.bibcode == page.astroref_name:
                 self.notebook.set_current_page(p)
                 self.notebook.show_all()
-                self.stop_spiner()
                 return
-
-        self.page = Gtk.ScrolledWindow()
-        self.page.astroref_name = self.data.bibcode
-
-        title_label = Gtk.Label(self.data.name)
-        image = Gtk.Image()
-        image.set_from_stock(Gtk.STOCK_CLOSE, Gtk.IconSize.MENU)
-
-        title_label.set_has_tooltip(True)
-        title_label.connect('query-tooltip' , self.tooltip)
-
-        self.close_button = Gtk.Button()
-        self.close_button.set_image(image)
-        self.close_button.set_relief(Gtk.ReliefStyle.NONE)
-        self.close_button.connect('clicked', self.on_tab_close)
-
-        self.header.pack_start(title_label,
-                          expand=True, fill=True, padding=0)
-        self.header.pack_end(self.spinner,
-                        expand=False, fill=False, padding=0)
-        self.spinner.start()    
-        self.header.show_all()
 
 
         self.page_num = self.notebook.append_page(self.page, self.header)
@@ -583,13 +560,6 @@ class ShowPDF(object):
             self.download()
         except ValueError:
             pass
-
-
-    def tooltip(self, widget, x, y, keyboard, tooltip):
-        tooltip.set_text(self.data.title)
-
-        return True
-
 
     def show(self):
         print('Start show')
@@ -606,18 +576,7 @@ class ShowPDF(object):
 
         self.page.show_all()
         self.notebook.show_all()
-
-
-    def stop_spiner(self):
-        self.spinner.stop()
-        self.header.remove(self.spinner)
-        self.header.pack_end(self.close_button,
-                        expand=False, fill=False, padding=0)
-        self.header.show_all()
-
-
-    def on_tab_close(self, button):
-        self.notebook.remove_page(self.notebook.page_num(self.page))
+        self.header.spin_off()
 
 
 class ErrorWindow(Gtk.Window):
@@ -651,6 +610,128 @@ class ThreadWithResult(threading.Thread):
         def function():
             self.result = target(*args, **kwargs)
         super().__init__(group=group, target=function, name=name, daemon=daemon)
+
+
+
+class PDFPopupWindow(Gtk.EventBox):
+    def __init__(self, notebook, page, data):
+        Gtk.EventBox.__init__(self)
+
+        self.notebook = notebook
+        self.page = page
+        self.data = data
+
+        self.spinner = Gtk.Spinner()
+        self.header = Gtk.HBox()
+        self.title_label = Gtk.Label(label=self.data.name)
+        image = Gtk.Image()
+        image.set_from_stock(Gtk.STOCK_CLOSE, Gtk.IconSize.MENU)
+
+        self.title_label.set_has_tooltip(True)
+        self.title_label.connect('query-tooltip' , self.tooltip)
+
+        self.close_button = Gtk.Button()
+        self.close_button.set_image(image)
+        self.close_button.set_relief(Gtk.ReliefStyle.NONE)
+        self.close_button.connect('clicked', self.on_tab_close)
+
+        self.spin_on()
+        self.header.pack_start(self.title_label,
+                          expand=True, fill=True, padding=0)
+        self.header.pack_end(self.spinner,
+                        expand=False, fill=False, padding=0)
+
+        self.header.show_all()
+
+        self.button = {}
+
+        self.popover = Gtk.Popover()
+
+        vbox = Gtk.VBox(orientation=Gtk.Orientation.VERTICAL)
+
+        self.button['open_ads'] = Gtk.LinkButton(self.data.ads_url,label='Open ADS')
+        vbox.pack_start(self.button['open_ads'], False, True, 0)
+
+        self.button['open_arxiv'] = Gtk.LinkButton(self.data.arxiv_url,label='Open Arxiv')
+        vbox.pack_start(self.button['open_arxiv'], False, True, 0)
+
+        self.button['open_journal'] = Gtk.LinkButton(self.data.journal_url,label='Open '+self.data.journal)
+        vbox.pack_start(self.button['open_journal'], False, True, 0)
+        vbox.pack_start(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL), False, True, 10)
+
+        self.button['copy_bibtex'] = Gtk.Button.new_with_label("Copy Bibtex")
+        vbox.pack_start(self.button['copy_bibtex'], False, True, 0)
+
+        self.button['cites'] = Gtk.Button.new_with_label("Citations")
+        vbox.pack_start(self.button['cites'], False, True, 0)
+
+        self.button['refs'] = Gtk.Button.new_with_label("References")
+        vbox.pack_start(self.button['refs'], False, True, 0)
+
+        vbox.pack_start(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL), False, True, 10)
+
+        self.button['add_lib'] = Gtk.Button.new_with_label("Add to library")
+        vbox.pack_start(self.button['add_lib'], False, True, 0)
+
+        vbox.show_all()
+
+        self.popover.add(vbox)
+        self.popover.set_position(Gtk.PositionType.BOTTOM)
+        
+        self.popover.set_relative_to(self.header)
+
+        self.add(self.header)
+
+        self.connect("button-press-event", self.button_press)
+
+        self.button['copy_bibtex'].connect("button-press-event", self.bp_bib)
+        self.button['cites'].connect("button-press-event", self.bp_cites)
+        self.button['refs'].connect("button-press-event", self.bp_refs)
+        self.button['add_lib'].connect("button-press-event", self.bp_add_lib)
+
+    def tooltip(self, widget, x, y, keyboard, tooltip):
+        tooltip.set_text(self.data.title)
+        return True
+
+
+    def on_tab_close(self, button):
+        self.notebook.remove_page(self.notebook.page_num(self.page))
+
+    def button_press(self, widget, event):
+        if event.button == Gdk.BUTTON_PRIMARY:
+            self.notebook.set_current_page(self.notebook.page_num(self.page))
+            return True
+        elif event.button == Gdk.BUTTON_SECONDARY:
+            #make widget popup
+            self.popover.popup()
+            return True
+        return False
+
+    def spin_on(self):
+        GLib.idle_add(self.spinner.start)
+
+    def spin_off(self):
+        GLib.idle_add(self.spinner.stop)
+        self.header.remove(self.spinner)
+        self.header.pack_end(self.close_button,
+                        expand=False, fill=False, padding=0)
+        self.header.show_all()
+
+
+    def bp_bib(self, widget, event):
+        clipboard(self.data.bibtex(text=True))
+        return True
+
+    def bp_cites(self, widget, event):
+        ShowJournal(self.data.citations,self.notebook,'Cites:'+self.data.name)
+        return True
+
+    def bp_refs(self, widget, event):
+        #ShowJournal(self.data.references,self.notebook,'Refs:'+self.data.name)
+        return True
+
+    def bp_add_lib(self, widget, event):
+        pass
 
 
 
