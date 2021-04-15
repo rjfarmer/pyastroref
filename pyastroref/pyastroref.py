@@ -355,12 +355,9 @@ class ShowJournal(object):
             GLib.idle_add(self.make_liststore)
             self.header.spin_off()
 
-        print('Start downloading data')
         thread = ThreadWithResult(target=threader)
         thread.daemon = True
         thread.start()
-        #thread.join()
-        print('End downloading data')
 
     def make_liststore(self):
         # Creating the ListStore model
@@ -459,7 +456,6 @@ class ShowJournal(object):
             elif title == 'References':
                 ShowJournal(article.references,self.notebook,'Refs:'+article.name)
             else:
-                print('Show...')
                 p = ShowPDF(article,self.notebook)
                 p.add()
 

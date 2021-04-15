@@ -539,6 +539,7 @@ class article(object):
     def arxiv_url(self):
         if self._data is None:
             self.search()
+        arxiv_id = None
         for i in self._data.identifier:
             if i.startswith('arXiv:'):
                 arxiv_id = i.replace('arXiv:','')
@@ -552,7 +553,6 @@ class article(object):
     def journal_url(self):
         if self._data is None:
             self.search()
-        print(self._data.identifier)
         doi = None
         for i in self._data.identifier:
             if i.startswith('10.'):
@@ -586,10 +586,9 @@ class article(object):
         if os.path.exists(filename):
             return
 
-        print(filename)
         for i in strs:
             url = _urls['pdfs']+str(self.bibcode)+i
-            print(url)
+
             # Pretend to be Firefox otherwise we hit captchas
             headers = {'user-agent': 'Mozilla /5.0 (Windows NT 10.0; Win64; x64)'}
             try:
@@ -598,7 +597,6 @@ class article(object):
                 raise ValueError("Couldn't download file")
 
             if r.content.startswith(b'<!DOCTYPE html'): 
-                print('Breaking on html')
                 continue
 
             with open(filename,'wb') as f:
@@ -618,7 +616,7 @@ class article(object):
 
     def references(self):
         if self._references is None:
-            self._references = journal(self.token,self._data.reference) 
+            self._references = journal(self.token,bibcodes=self._data.reference) 
         return self._references 
 
     def bibtex(self,filename=None,text=True):
@@ -758,7 +756,6 @@ def chunked_search(token,ids,prefix):
         sdata = []
         for i in query:
             sdata.append(list(ads.SearchQuery(q=i,fl=_fields)))
-            print('*',len(ids),len(sdata[-1]))
 
         data = [item for sublist in sdata for item in sublist]
 
@@ -785,8 +782,7 @@ class arxivrss(object):
             arxiv_ids = [i for i in arxiv_ids if i.startswith(thismonth)]
 
             self._data = chunked_search(self.token,arxiv_ids,'identifier:')
-            print(len(self._data))
-
+            
         return self._data
 
 
