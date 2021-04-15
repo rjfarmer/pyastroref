@@ -332,56 +332,19 @@ class ShowJournal(object):
         self.page.set_hexpand(True)
         self.page.add(self.treeview)
 
-        self.header = Gtk.HBox()
-        title_label = Gtk.Label(name)
-        image = Gtk.Image()
-        image.set_from_stock(Gtk.STOCK_CLOSE, Gtk.IconSize.MENU)
-
-        self.close_button = Gtk.Button()
-        self.close_button.set_image(image)
-        self.close_button.set_relief(Gtk.ReliefStyle.NONE)
-        self.close_button.connect('clicked', self.on_tab_close)
-
-        self.menu = Gtk.Menu()
-        menuitem = Gtk.MenuItem("Test1")
-        self.menu.append(menuitem)
-        menuitem.show()
-        menuitem = Gtk.MenuItem("Test2")
-        menuitem.show()
-        self.menu.append(menuitem)
-
-        self.header.connect_object('event', self.on_pop_menu, self.menu)
-
-        self.spinner = Gtk.Spinner()
-
-        self.header.pack_start(title_label,
-                          expand=True, fill=True, padding=0)
-        self.header.pack_end(self.spinner,
-                        expand=False, fill=False, padding=0)
-        self.spinner.start()    
-        self.header.show_all()
+        self.header = JournalPopupWindow(self.notebook, self.page, name)
 
 
         self.notebook.append_page(self.page, self.header)
         self.notebook.set_tab_reorderable(self.page, True)
         self.notebook.show_all()
+        self.header.spin_on()
 
         self.download()
 
         self.page.show_all()
         self.notebook.show_all()
-        self.spinner.stop()
-        self.header.remove(self.spinner)
-        self.header.pack_end(self.close_button,
-                        expand=False, fill=False, padding=0)
         self.header.show_all()
-
-
-    def on_pop_menu(self, widget, event):
-        print('Right click a')
-        if event.type == Gdk.BUTTON_PRESS and event.button == Gdk.BUTTON_SECONDARY:
-            print('Right click?')
-            widget.popup(None, None, None, None, event.button, event.time)
 
 
     def download(self):
@@ -390,6 +353,7 @@ class ShowJournal(object):
             GLib.idle_add(self.store.clear)
             self.journal = journal
             GLib.idle_add(self.make_liststore)
+            self.header.spin_off()
 
         print('Start downloading data')
         thread = ThreadWithResult(target=threader)
@@ -498,11 +462,6 @@ class ShowJournal(object):
                 print('Show...')
                 p = ShowPDF(article,self.notebook)
                 p.add()
-
-
-    def on_tab_close(self, button):
-        self.notebook.remove_page(self.notebook.page_num(self.page))
-
 
 
 def clipboard(data):
@@ -675,6 +634,12 @@ class PDFPopupWindow(Gtk.EventBox):
         self.button['add_lib'] = Gtk.Button.new_with_label("Add to library")
         vbox.pack_start(self.button['add_lib'], False, True, 0)
 
+        self.button['close'] = Gtk.Button.new_with_label("Close")
+        vbox.pack_start(self.button['close'], False, True, 0)
+
+        self.button['del'] = Gtk.Button.new_with_label("Delete")
+        vbox.pack_start(self.button['del'], False, True, 0)
+
         vbox.show_all()
 
         self.popover.add(vbox)
@@ -690,6 +655,9 @@ class PDFPopupWindow(Gtk.EventBox):
         self.button['cites'].connect("button-press-event", self.bp_cites)
         self.button['refs'].connect("button-press-event", self.bp_refs)
         self.button['add_lib'].connect("button-press-event", self.bp_add_lib)
+
+        self.button['close'].connect("button-press-event", self.bp_close)
+        self.button['del'].connect("button-press-event", self.bp_del)
 
     def tooltip(self, widget, x, y, keyboard, tooltip):
         tooltip.set_text(self.data.title)
@@ -729,12 +697,115 @@ class PDFPopupWindow(Gtk.EventBox):
         return True
 
     def bp_refs(self, widget, event):
-        #ShowJournal(self.data.references,self.notebook,'Refs:'+self.data.name)
+        ShowJournal(self.data.references,self.notebook,'Refs:'+self.data.name)
         return True
 
     def bp_add_lib(self, widget, event):
         pass
 
+    def bp_close(self, widget, event):
+        self.on_tab_close(widget)
+
+    def bp_del(self, widget, event):
+        os.remove(os.path.join(adsdata.pdffolder,self.data.filename))
+        self.on_tab_close(widget)
+
+
+
+class JournalPopupWindow(Gtk.EventBox):
+    def __init__(self, notebook, page, data):
+        Gtk.EventBox.__init__(self)
+
+        self.notebook = notebook
+        self.page = page
+        self.data = data
+
+        self.spinner = Gtk.Spinner()
+        self.header = Gtk.HBox()
+        self.title_label = Gtk.Label(label=self.data)
+        image = Gtk.Image()
+        image.set_from_stock(Gtk.STOCK_CLOSE, Gtk.IconSize.MENU)
+
+        self.close_button = Gtk.Button()
+        self.close_button.set_image(image)
+        self.close_button.set_relief(Gtk.ReliefStyle.NONE)
+        self.close_button.connect('clicked', self.on_tab_close)
+
+        self.spin_on()
+        self.header.pack_start(self.title_label,
+                          expand=True, fill=True, padding=0)
+        self.header.pack_end(self.spinner,
+                        expand=False, fill=False, padding=0)
+
+        self.header.show_all()
+
+        self.button = {}
+
+        self.popover = Gtk.Popover()
+
+        vbox = Gtk.VBox(orientation=Gtk.Orientation.VERTICAL)
+
+        self.button['copy_bibtex'] = Gtk.Button.new_with_label("Copy Bibtexs")
+        vbox.pack_start(self.button['copy_bibtex'], False, True, 0)
+
+        vbox.pack_start(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL), False, True, 10)
+
+        self.button['add_lib'] = Gtk.Button.new_with_label("Add to library")
+        vbox.pack_start(self.button['add_lib'], False, True, 0)
+
+        self.button['close'] = Gtk.Button.new_with_label("Close")
+        vbox.pack_start(self.button['close'], False, True, 0)
+
+        vbox.show_all()
+
+        self.popover.add(vbox)
+        self.popover.set_position(Gtk.PositionType.BOTTOM)
+        
+        self.popover.set_relative_to(self.header)
+
+        self.add(self.header)
+
+        self.connect("button-press-event", self.button_press)
+
+        self.button['copy_bibtex'].connect("button-press-event", self.bp_bib)
+        self.button['add_lib'].connect("button-press-event", self.bp_add_lib)
+
+        self.button['close'].connect("button-press-event", self.bp_close)
+
+
+    def on_tab_close(self, button):
+        self.notebook.remove_page(self.notebook.page_num(self.page))
+
+    def button_press(self, widget, event):
+        if event.button == Gdk.BUTTON_PRIMARY:
+            self.notebook.set_current_page(self.notebook.page_num(self.page))
+            return True
+        elif event.button == Gdk.BUTTON_SECONDARY:
+            #make widget popup
+            self.popover.popup()
+            return True
+        return False
+
+    def spin_on(self):
+        GLib.idle_add(self.spinner.start)
+
+    def spin_off(self):
+        GLib.idle_add(self.spinner.stop)
+        self.header.remove(self.spinner)
+        self.header.pack_end(self.close_button,
+                        expand=False, fill=False, padding=0)
+        self.header.show_all()
+
+
+    def bp_bib(self, widget, event):
+        #clipboard(self.data.bibtex(text=True))
+        return True
+
+    def bp_add_lib(self, widget, event):
+        pass
+
+    def bp_close(self, widget, event):
+        self.on_tab_close(widget)
 
 
 
