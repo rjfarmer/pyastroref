@@ -2,7 +2,7 @@
 # pyAstroRef
 
 
-The astronomers reference manager.
+The astronomer's reference manager.
 
 
 ## Installation
@@ -42,4 +42,5 @@ Or it can be set in the options menu.
 
 ## Acknowledgements
 
+This research has made use of NASA’s Astrophysics Data System Bibliographic Services.
 Thank you to arXiv for use of its open access interoperability.
