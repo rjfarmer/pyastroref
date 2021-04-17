@@ -561,7 +561,7 @@ class PDFPopupWindow(Gtk.EventBox):
         self.header = Gtk.HBox()
         self.title_label = Gtk.Label(label=self.data.name)
         image = Gtk.Image()
-        image.set_from_stock(Gtk.STOCK_CLOSE, Gtk.IconSize.MENU)
+        image.set_from_icon_name('window-close', Gtk.IconSize.MENU)
 
         self.title_label.set_has_tooltip(True)
         self.title_label.connect('query-tooltip' , self.tooltip)
@@ -585,15 +585,15 @@ class PDFPopupWindow(Gtk.EventBox):
 
         vbox = Gtk.VBox(orientation=Gtk.Orientation.VERTICAL)
 
-        self.button['open_ads'] = Gtk.LinkButton(self.data.ads_url,label='Open ADS')
+        self.button['open_ads'] = Gtk.LinkButton(uri=self.data.ads_url,label='Open ADS')
         vbox.pack_start(self.button['open_ads'], False, True, 0)
 
         if len(self.data.arxiv_url):
-            self.button['open_arxiv'] = Gtk.LinkButton(self.data.arxiv_url,label='Open Arxiv')
+            self.button['open_arxiv'] = Gtk.LinkButton(uri=self.data.arxiv_url,label='Open Arxiv')
             vbox.pack_start(self.button['open_arxiv'], False, True, 0)
 
         if len(self.data.journal_url):
-            self.button['open_journal'] = Gtk.LinkButton(self.data.journal_url,label='Open '+self.data.journal)
+            self.button['open_journal'] = Gtk.LinkButton(uri=self.data.journal_url,label='Open '+self.data.journal)
             vbox.pack_start(self.button['open_journal'], False, True, 0)
         vbox.pack_start(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL), False, True, 10)
 
@@ -696,13 +696,14 @@ class JournalPopupWindow(Gtk.EventBox):
         self.notebook = notebook
         self.page = page
         self.bibcodes = []
+        self.query = ''
         self.name = name
 
         self.spinner = Gtk.Spinner()
         self.header = Gtk.HBox()
         self.title_label = Gtk.Label(label=self.name)
         image = Gtk.Image()
-        image.set_from_stock(Gtk.STOCK_CLOSE, Gtk.IconSize.MENU)
+        image.set_from_icon_name('window-close', Gtk.IconSize.MENU)
 
         self.close_button = Gtk.Button()
         self.close_button.set_image(image)
