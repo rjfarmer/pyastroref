@@ -3,7 +3,6 @@
 import sys,os
 import argparse
 import threading
-from enum import Enum
 
 from . import adsabs
 
@@ -19,10 +18,6 @@ from gi.repository import EvinceView
 
 EvinceDocument.init()
 
-
-class ERRORS(Enum):
-    DOWNLOAD = 1
-    PDF = 2
 
 adsdata=adsabs.adsabs()
 
@@ -521,33 +516,6 @@ class ShowPDF(object):
         self.page.show_all()
         self.notebook.show_all()
         GLib.idle_add(self.header.spin_off)
-
-
-class ErrorWindow(Gtk.Window):
-    def __init__(self, data, ERROR_CODE):
-        self.data= data
-        self.ERROR_CODE=ERROR_CODE
-
-        text_2 = ''
-        if self.ERROR_CODE == ERRORS.DOWNLOAD:
-            text_1 = 'Could not download '+self.data.bibcode
-        elif self.ERROR_CODE == ERRORS.PDF:
-            text_1 = 'Not a valid pdf file for '+self.data.bibcode
-            text_2 = os.path.join(adsdata.pdffolder,self.data.filename)
-
-        dialog = Gtk.MessageDialog(
-            transient_for=self,
-            flags=0,
-            message_type=Gtk.MessageType.INFO,
-            buttons=Gtk.ButtonsType.OK,
-            text=text_1,
-        )
-        dialog.format_secondary_text(text_2)
-        dialog.run()
-        self.add(dialog)
-        
-        self.show_all() 
-        dialog.destroy()
 
 class PDFPopupWindow(Gtk.EventBox):
     def __init__(self, notebook, page, data):
