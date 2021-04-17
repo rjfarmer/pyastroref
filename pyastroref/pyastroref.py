@@ -210,25 +210,28 @@ class OptionsMenu(Gtk.Window):
 
 
 class LeftPanel(object):
+    _fields = ['Home', 'ORCID', 'Arxiv', 'Libraries', 'Journals', 'Saved searches']
+
+
     def __init__(self, notebook):
         self.store = Gtk.TreeStore(str)
         self.notebook = notebook
 
-        self.store.append(None,['Home'])
-        self.store.append(None,['ORCID'])
-        self.store.append(None,['Arxiv'])
-        self._lib = self.store.append(None,['Libraries'])
+        self.rows = {}
+
+
+        for idx,i in enumerate(self._fields):
+            self.rows[i] = {
+                            'row': self.store.append(None,[i]),
+                            'idx': idx
+                            }
+
         libs = adsdata.libraries.names()
         for i in libs:
-            self.store.append(self._lib,[i])
+            self.store.append(self.rows['Libraries']['row'],[i])
 
-
-        self._journal = self.store.append(None,['Journals'])
         for i in adsJournals.list_defaults():
-            self.store.append(self._journal,[adsJournals.default_journals[i]])
-
-
-        self._search = self.store.append(None,['Saved searches'])
+            self.store.append(self.rows['Journals']['row'],[adsJournals.default_journals[i]])
 
 
         self.tree = Gtk.TreeView(model=self.store)
@@ -237,52 +240,76 @@ class LeftPanel(object):
         column = Gtk.TreeViewColumn("", renderer, text=0)
         self.tree.append_column(column)
 
-        self.tree.get_selection().connect('changed' , self.row_selected)
+        #self.tree.get_selection().connect('changed' , self.row_selected)
+        self.tree.connect('button-press-event' , self.button_press_event)
 
-    def row_selected(self, selection):
-        model, iters = selection.get_selected()
 
-        row = model[iters][0]
-        parent = None
-        if model[iters].parent is not None:
-            parent = model[iters].parent[0]
+    def button_press_event(self, treeview, event):
+        # Get row:
+        try:
+            path, _,_,_ = treeview.get_path_at_pos(int(event.x),int(event.y))
+        except TypeError:
+            return True
+        if path is None:
+            return False
 
-        for p in range(self.notebook.get_n_pages()):
-            page = self.notebook.get_nth_page(p)
-            if row == page.astroref_name:
-                self.notebook.set_current_page(p)
-                self.notebook.show_all()
+        # path is either a number 0,1,2 etc or 0:1,0:2 for sub-rows of row 0
+        if ':' in path.to_string():
+            row, child = path.to_string().split(':')
+            row = int(row)
+            child = int(child)
+        else:
+            row = int(path.to_string())
+            child = None
+
+        target = None
+        name = list(self.store[row])[0]
+        if event.button == Gdk.BUTTON_PRIMARY: # left click
+            if row == self.rows['Home']['idx']:
+                def func():
+                    return []
+                target = func
+            elif row == self.rows['Arxiv']['idx']:
+                target = adsabs.arxivrss(adsdata.token).articles
+            elif row == self.rows['ORCID']['idx']:
+                if adsdata.orcid is None:
+                    ShowOptionsMenu()
+                    return
+                def func():
+                    return adsdata.search('orcid:"'+str(adsdata.orcid) +'"')
+                target = func
+            elif row == self.rows['Libraries']['idx']:
+                # TODO: Refresh data
+                pass
+            elif row == self.rows['Journals']['idx']:
+                # TODO: Refresh data
+                pass
+            elif row == self.rows['Saved searches']['idx']:
+                # TODO: Refresh data
+                pass
+
+            if child is not None:
+                name = list(list(self.store[row].iterchildren())[child])[0]
+                # Must be an item with sub items
+                if row == self.rows['Libraries']['idx']:
+                    def func():
+                        bibcodes = adsdata.libraries[name].keys()
+                        return adsabs.chunked_search(adsdata.token,bibcodes,'bibcode:')
+                    target = func
+                elif self.rows['Journals']['idx']:
+                    def func():
+                        return adsJournals.search(name)
+                    target = func
+
+                elif self.rows['Saved searches']['idx']:
+                    pass
+
+            if target is not None:
+                ShowJournal(target,self.notebook,name)  
                 return
 
-        target = None       
-        if row == 'Home':
-            def func():
-                return []
-            target = func
-        elif row == 'Arxiv':
-            target = adsabs.arxivrss(adsdata.token).articles
-        elif row == 'ORCID':
-            if adsdata.orcid is None:
-                ShowOptionsMenu()
-                return
-
-            def func():
-                return adsdata.search('orcid:"'+str(adsdata.orcid) +'"')
-            target = func
-        elif parent is not None:
-            if parent == 'Libraries':
-                def func():
-                    bibcodes = adsdata.libraries[row].keys()
-                    return adsabs.chunked_search(adsdata.token,bibcodes,'bibcode:')
-                target = func
-            elif parent == 'Journals':
-                def func():
-                    return adsJournals.search(row)
-                target = func
-
-        if target is not None:
-            ShowJournal(target,self.notebook,row)  
-            return
+        elif event.button == Gdk.BUTTON_SECONDARY: # right click
+            pass
 
 
 class Search(object):
@@ -331,9 +358,9 @@ class ShowJournal(object):
 
     def download(self):
         def threader():
-            journal = self.target()
+            self.journal = []
             GLib.idle_add(self.store.clear)
-            self.journal = journal
+            self.journal = self.target()
             GLib.idle_add(self.make_liststore)
             GLib.idle_add(self.header.spin_off)
             self.header.data = self.journal
@@ -345,7 +372,6 @@ class ShowJournal(object):
     def make_liststore(self):
         # Creating the ListStore model
         for paper in self.journal:
-
             pdficon = 'go-down'
             if os.path.exists(os.path.join(adsdata.pdffolder,paper.filename)):
                 pdficon = 'x-office-document'

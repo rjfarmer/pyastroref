@@ -889,4 +889,5 @@ class JournalData(object):
             bibs = [i.bibcode for i in data]
             self._results[name] = journal(self.token,bibs,data=data)
 
+        self._results[name].reset()
         return self._results[name]
