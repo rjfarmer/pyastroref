@@ -214,11 +214,6 @@ class OptionsMenu(Gtk.Window):
         dialog.destroy()
 
 
-        #x = adsabs.arxivrss(adsdata.token)
-        #label = Gtk.Label('Arxiv')
-        #self.right_panel.append_page(ShowJournal(x.articles(),self.right_panel).add(),label)
-
-
 class LeftPanel(object):
     def __init__(self, notebook):
         self.store = Gtk.TreeStore(str)
@@ -228,6 +223,10 @@ class LeftPanel(object):
         self.store.append(None,['ORCID'])
         self.store.append(None,['Arxiv'])
         self._lib = self.store.append(None,['Libraries'])
+        libs = adsdata.libraries.names()
+        for i in libs:
+            self.store.append(self._lib,[i])
+
 
         self._journal = self.store.append(None,['Journals'])
         for i in adsJournals.list_defaults():
@@ -278,7 +277,6 @@ class LeftPanel(object):
         elif parent is not None:
             if parent == 'Libraries':
                 def func():
-                    print(len(adsdata.libraries[row].keys()))
                     bibcodes = adsdata.libraries[row].keys()
                     return adsabs.chunked_search(adsdata.token,bibcodes,'bibcode:')
                 target = func
@@ -290,17 +288,6 @@ class LeftPanel(object):
         if target is not None:
             ShowJournal(target,self.notebook,row)  
             return
-
-        # Things that need thier data fetching when we expand thier row
-
-        if row == 'Libraries':
-            libs = adsdata.libraries.names()
-            for i in libs:
-                self.store.append(self._lib,[i])
-
-
-    #connect('row_expanded')
-
 
 
 class Search(object):
@@ -338,7 +325,7 @@ class ShowJournal(object):
         self.notebook.append_page(self.page, self.header)
         self.notebook.set_tab_reorderable(self.page, True)
         self.notebook.show_all()
-        self.header.spin_on()
+        GLib.idle_add(self.header.spin_on)
 
         self.download()
 
@@ -353,9 +340,10 @@ class ShowJournal(object):
             GLib.idle_add(self.store.clear)
             self.journal = journal
             GLib.idle_add(self.make_liststore)
-            self.header.spin_off()
+            GLib.idle_add(self.header.spin_off)
+            self.header.data = self.journal
 
-        thread = ThreadWithResult(target=threader)
+        thread = threading.Thread(target=threader)
         thread.daemon = True
         thread.start()
 
@@ -427,7 +415,8 @@ class ShowJournal(object):
         if len(self.journal):
             tooltip.set_text(self.journal[row].abstract)
             self.treeview.set_tooltip_row(tooltip, path)
-        return True
+            return True
+        return False
 
     def button_press_event(self, treeview, event):
         try:
@@ -531,7 +520,7 @@ class ShowPDF(object):
 
         self.page.show_all()
         self.notebook.show_all()
-        self.header.spin_off()
+        GLib.idle_add(self.header.spin_off)
 
 
 class ErrorWindow(Gtk.Window):
@@ -560,14 +549,6 @@ class ErrorWindow(Gtk.Window):
         self.show_all() 
         dialog.destroy()
 
-class ThreadWithResult(threading.Thread):
-    def __init__(self, group=None, target=None, name=None, args=(), kwargs={}, *, daemon=None):
-        def function():
-            self.result = target(*args, **kwargs)
-        super().__init__(group=group, target=function, name=name, daemon=daemon)
-
-
-
 class PDFPopupWindow(Gtk.EventBox):
     def __init__(self, notebook, page, data):
         Gtk.EventBox.__init__(self)
@@ -590,7 +571,7 @@ class PDFPopupWindow(Gtk.EventBox):
         self.close_button.set_relief(Gtk.ReliefStyle.NONE)
         self.close_button.connect('clicked', self.on_tab_close)
 
-        self.spin_on()
+        GLib.idle_add(self.spin_on)
         self.header.pack_start(self.title_label,
                           expand=True, fill=True, padding=0)
         self.header.pack_end(self.spinner,
@@ -674,10 +655,10 @@ class PDFPopupWindow(Gtk.EventBox):
         return False
 
     def spin_on(self):
-        GLib.idle_add(self.spinner.start)
+        self.spinner.start()
 
     def spin_off(self):
-        GLib.idle_add(self.spinner.stop)
+        self.spinner.stop()
         self.header.remove(self.spinner)
         self.header.pack_end(self.close_button,
                         expand=False, fill=False, padding=0)
@@ -697,7 +678,7 @@ class PDFPopupWindow(Gtk.EventBox):
         return True
 
     def bp_add_lib(self, widget, event):
-        pass
+        Add2Lib([self.data.bibcode])
 
     def bp_close(self, widget, event):
         self.on_tab_close(widget)
@@ -709,16 +690,17 @@ class PDFPopupWindow(Gtk.EventBox):
 
 
 class JournalPopupWindow(Gtk.EventBox):
-    def __init__(self, notebook, page, data):
+    def __init__(self, notebook, page, name):
         Gtk.EventBox.__init__(self)
 
         self.notebook = notebook
         self.page = page
-        self.data = data
+        self.bibcodes = []
+        self.name = name
 
         self.spinner = Gtk.Spinner()
         self.header = Gtk.HBox()
-        self.title_label = Gtk.Label(label=self.data)
+        self.title_label = Gtk.Label(label=self.name)
         image = Gtk.Image()
         image.set_from_stock(Gtk.STOCK_CLOSE, Gtk.IconSize.MENU)
 
@@ -727,7 +709,7 @@ class JournalPopupWindow(Gtk.EventBox):
         self.close_button.set_relief(Gtk.ReliefStyle.NONE)
         self.close_button.connect('clicked', self.on_tab_close)
 
-        self.spin_on()
+        GLib.idle_add(self.spin_on)
         self.header.pack_start(self.title_label,
                           expand=True, fill=True, padding=0)
         self.header.pack_end(self.spinner,
@@ -783,10 +765,10 @@ class JournalPopupWindow(Gtk.EventBox):
         return False
 
     def spin_on(self):
-        GLib.idle_add(self.spinner.start)
+        self.spinner.start()
 
     def spin_off(self):
-        GLib.idle_add(self.spinner.stop)
+        self.spinner.stop()
         self.header.remove(self.spinner)
         self.header.pack_end(self.close_button,
                         expand=False, fill=False, padding=0)
@@ -798,11 +780,50 @@ class JournalPopupWindow(Gtk.EventBox):
         return True
 
     def bp_add_lib(self, widget, event):
-        pass
+        Add2Lib(self.data.bibcodes())
+        return True
 
     def bp_close(self, widget, event):
         self.on_tab_close(widget)
 
+
+class Add2Lib(Gtk.Window):
+    def __init__(self, bibcodes=[]):
+        Gtk.Window.__init__(self, title="Add to library")
+
+        self.bibcodes = bibcodes
+
+        self.set_border_width(10)
+        self.set_position(Gtk.WindowPosition.CENTER)
+
+
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
+
+        self.combo = Gtk.ComboBoxText()
+        libs = adsdata.libraries.names()
+        for i in libs:
+            self.combo.append_text(i)
+
+        self.combo.set_entry_text_column(0)
+        self.combo.set_active(0)
+
+        vbox.pack_start(self.combo, True,True,0)
+
+        save = Gtk.Button(label='Save')
+        save.connect('clicked', self.on_save)
+
+        vbox.pack_start(save, True,True,0)
+
+        self.add(vbox)
+        self.show_all()
+
+    def on_save(self, button):
+        lib = self.combo.get_active_text()
+        if lib is not None and len(self.bibcodes):
+            print('Saving to ',lib)
+            adsdata.libraries[lib].add(self.bibcodes)
+        self.destroy()
 
 
 def main():

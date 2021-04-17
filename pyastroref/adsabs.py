@@ -74,7 +74,7 @@ class _BearerAuth(requests.auth.AuthBase):
 
 # Just makes sure we have a list of strings
 def _ensure_list(s):
-    return s if isinstance(s, list) else [s]
+    return s if isinstance(s, list) else list(s)
 
 def _chunked_join(data,prefix='',joiner='',nmax=20):
     '''
@@ -300,8 +300,10 @@ class library(object):
         self._n = 0
 
     def url(self):
-        return _urls['libraries'] + '/' + self.libraryid
+        return _urls['libraries'] + '/' + self.libraryid 
 
+    def url_docs(self):
+        return _urls['documents'] + '/' + self.libraryid 
 
     def update(self):
         data = requests.get(self.url(),
@@ -312,7 +314,6 @@ class library(object):
         self.name = self.metadata['name']
 
     def keys(self):
-        print('**',len(self.docs),self.metadata)
         return self.docs
 
     def __getitem__(self,key):
@@ -334,7 +335,7 @@ class library(object):
         Add bibcode to library
         '''
         data = {'bibcode':_ensure_list(bibcode),"action":"add"}
-        r = requests.post(self.url(_urls['documents']),
+        r = requests.post(self.url_docs(),
                 auth=_BearerAuth(self.token),
                 headers={'Content-Type':'application/json'},
                 json = data).json()
@@ -342,13 +343,15 @@ class library(object):
         if 'number_added' not in r:
             raise ValueError(r['message'])
 
+    
+
 
     def remove(self, bibcode):
         '''
         Remove bibcode from library
         '''
         data = {'bibcode':_ensure_list(bibcode),"action":"remove"}
-        r = requests.post(self.url(_urls['documents']),
+        r = requests.post(self.url_docs(),
                 auth=_BearerAuth(self.token),
                 headers={'Content-Type':'application/json'},
                 json = data).json()
@@ -427,6 +430,9 @@ class journal(object):
 
     def keys(self):
         return self._set_bibcodes
+
+    def bibcodes(self):
+        return self.keys()
 
 
 class article(object):
@@ -782,7 +788,7 @@ class arxivrss(object):
             arxiv_ids = [i for i in arxiv_ids if i.startswith(thismonth)]
 
             self._data = chunked_search(self.token,arxiv_ids,'identifier:')
-            
+
         return self._data
 
 
