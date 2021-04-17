@@ -347,8 +347,8 @@ class ShowJournal(object):
         for paper in self.journal:
 
             pdficon = 'go-down'
-            #if os.path.exists(os.path.join(adsdata._pdffolder,paper.filename)):
-            #    pdficon = 'x-office-document'
+            if os.path.exists(os.path.join(adsdata.pdffolder,paper.filename)):
+                pdficon = 'x-office-document'
 
             authors = paper.authors.split(';')[1:]
             if len(authors) > 3:
