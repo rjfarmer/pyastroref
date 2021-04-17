@@ -622,7 +622,9 @@ class article(object):
 
     def references(self):
         if self._references is None:
-            self._references = journal(self.token,bibcodes=self._data.reference) 
+            data = list(ads.SearchQuery(q='references(bibcode:"'+self._bibcode+'")',fl=_fields))
+            bibs = [i.bibcode for i in data]
+            self._references = journal(self.token,bibs,data=data)
         return self._references 
 
     def bibtex(self,filename=None,text=True):
