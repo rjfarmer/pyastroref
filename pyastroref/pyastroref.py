@@ -732,6 +732,10 @@ class JournalPopupWindow(Gtk.EventBox):
         self.button['add_lib'] = Gtk.Button.new_with_label("Add to library")
         vbox.pack_start(self.button['add_lib'], False, True, 0)
 
+        self.button['save_search'] = Gtk.Button.new_with_label("Save search")
+        vbox.pack_start(self.button['save_search'], False, True, 0)
+
+        vbox.pack_start(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL), False, True, 10)
         self.button['close'] = Gtk.Button.new_with_label("Close")
         vbox.pack_start(self.button['close'], False, True, 0)
 
@@ -748,6 +752,7 @@ class JournalPopupWindow(Gtk.EventBox):
 
         self.button['copy_bibtex'].connect("button-press-event", self.bp_bib)
         self.button['add_lib'].connect("button-press-event", self.bp_add_lib)
+        self.button['save_search'].connect("button-press-event", self.bp_save_search)
 
         self.button['close'].connect("button-press-event", self.bp_close)
 
@@ -787,6 +792,9 @@ class JournalPopupWindow(Gtk.EventBox):
     def bp_close(self, widget, event):
         self.on_tab_close(widget)
 
+    def bp_save_search(self, widget, event):
+        AddSavedSearch(self.page.astroref_name)
+
 
 class Add2Lib(Gtk.Window):
     def __init__(self, bibcodes=[]):
@@ -825,6 +833,49 @@ class Add2Lib(Gtk.Window):
             print('Saving to ',lib)
             adsdata.libraries[lib].add(self.bibcodes)
         self.destroy()
+
+class AddSavedSearch(Gtk.Window):
+    def __init__(self, query=''):
+        Gtk.Window.__init__(self, title="Saved search")
+
+        self.query = query
+
+        self.set_border_width(10)
+        self.set_position(Gtk.WindowPosition.CENTER)
+
+
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
+        self.name = Gtk.Entry()
+        self.name.set_placeholder_text('Name')
+        vbox.pack_start(self.name, True, True, 0)
+
+
+        self.entry = Gtk.Entry()
+        self.entry.set_placeholder_text('Query')
+        self.entry.set_text(query)
+        vbox.pack_start(self.entry, True, True, 0)
+
+        self.description = Gtk.Entry()
+        self.description.set_placeholder_text('Description')
+        vbox.pack_start(self.description, True, True, 0)
+
+        save = Gtk.Button(label='Save')
+        save.connect('clicked', self.on_save)
+
+        vbox.pack_start(save, True,True,0)
+
+        self.add(vbox)
+        self.show_all()
+
+    def on_save(self, button):
+        name = self.name.get_text()
+        query = self.query
+        description = self.name.get_text()
+        print('Saving',name,query,description)
+        self.destroy()
+
+
 
 
 def main():
