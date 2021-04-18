@@ -19,7 +19,7 @@ pip install -r requirements.txt
 Build and install software
 
 ```
-python3 setup.py install --user
+pip install .
 ```
 
 And run
