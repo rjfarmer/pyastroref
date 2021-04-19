@@ -418,9 +418,24 @@ class ShowJournal(object):
 
             self.treeview.append_column(column)
 
+        self.treeviewsorted.set_sort_func(2, self.int_compare, 2)
+        self.treeviewsorted.set_sort_func(5, self.int_compare, 5)
+        self.treeviewsorted.set_sort_func(6, self.int_compare, 6)
+
         #self.treeview.connect('row-activated' , self.button_press_event)
         self.treeview.connect('query-tooltip' , self.tooltip)
         self.treeview.connect('button-press-event' , self.button_press_event)
+
+    def int_compare(self, model, row1, row2, user_data):
+        value1 = int(model.get_value(row1, user_data))
+        value2 = int(model.get_value(row2, user_data))
+        if value1 < value2:
+            return -1
+        elif value1 == value2:
+            return 0
+        else:
+            return 1
+
 
     def tooltip(self, widget, x, y, keyboard, tooltip):
         if not len(self.journal):
