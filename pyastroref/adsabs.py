@@ -217,6 +217,12 @@ class libraries(object):
         if key in self.data.keys():
             return library(self.token,self.data[key]['id'])
 
+    def __getattr__(self, key):
+        if self.data is None:
+            self.update()
+        if key in self.data.keys():
+            return library(self.token,self.data[key]['id'])
+
     def get(self, name):
         '''
         Fetches library
@@ -288,6 +294,8 @@ class libraries(object):
     def reset(self):
         self._n = 0
 
+    def __dir__(self):
+        return ['reset','add','get','names','removes','update'] + list(self.keys())
 
 class library(object):
     '''
@@ -306,10 +314,21 @@ class library(object):
         return _urls['documents'] + '/' + self.libraryid 
 
     def update(self):
+        self.docs = []
+
         data = requests.get(self.url(),
+                        auth=_BearerAuth(self.token)
+                        ).json()
+        self.docs.extend(data['documents'])
+
+        total_num = int(data['metadata']['num_documents'])
+        if len(self.docs) < total_num:
+            num_left = total_num - len(self.docs)
+            data = requests.get(self.url()+'?start='+str(len(self.docs))+'&rows='+str(num_left),
                             auth=_BearerAuth(self.token)
                             ).json()
-        self.docs = data['documents']
+            self.docs.extend(data['documents'])
+
         self.metadata = data['metadata']
         self.name = self.metadata['name']
 
@@ -343,9 +362,6 @@ class library(object):
         if 'number_added' not in r:
             raise ValueError(r['message'])
 
-    
-
-
     def remove(self, bibcode):
         '''
         Remove bibcode from library
@@ -358,9 +374,6 @@ class library(object):
         # Error check:
         if 'number_removed' not in r:
             raise ValueError(r['message'])
-
-
-
 
     def __len__(self):
         return len(self.docs)
