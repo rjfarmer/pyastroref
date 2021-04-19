@@ -566,7 +566,7 @@ class ShowPDF(object):
         try:
             doc = EvinceDocument.Document.factory_get_document('file://'+self._filename)
         except gi.repository.GLib.Error:
-            #ErrorWindow(self.data,ERRORS.PDF)
+            GLib.idle_add(self.header.spin_off)
             return
         view = EvinceView.View()
         model = EvinceView.DocumentModel()
