@@ -257,7 +257,7 @@ class LeftPanel(object):
         if ':' in path.to_string():
             row, child = path.to_string().split(':')
             row = int(row)
-            child = int(child)
+            child = list(list(self.store[row].iterchildren())[int(child)])[0]
         else:
             row = int(path.to_string())
             child = None
@@ -289,16 +289,16 @@ class LeftPanel(object):
                 pass
 
             if child is not None:
-                name = list(list(self.store[row].iterchildren())[child])[0]
+                name = child
                 # Must be an item with sub items
                 if row == self.rows['Libraries']['idx']:
                     def func():
-                        bibcodes = adsdata.libraries[name].keys()
+                        bibcodes = adsdata.libraries[child].keys()
                         return adsabs.chunked_search(adsdata.token,bibcodes,'bibcode:')
                     target = func
                 elif self.rows['Journals']['idx']:
                     def func():
-                        return adsJournals.search(name)
+                        return adsJournals.search(child)
                     target = func
 
                 elif self.rows['Saved searches']['idx']:
@@ -309,7 +309,31 @@ class LeftPanel(object):
                 return
 
         elif event.button == Gdk.BUTTON_SECONDARY: # right click
-            pass
+            if row == self.rows['Home']['idx']:
+                lpm = LeftPanelMenu(name,child,refresh=True)
+            elif row == self.rows['Arxiv']['idx']:
+                lpm = LeftPanelMenu(name,child,refresh=True)
+            elif row == self.rows['ORCID']['idx']:
+                lpm = LeftPanelMenu(name,child,refresh=True)
+            elif row == self.rows['Libraries']['idx']:
+                lpm = LeftPanelMenu(name,child,add=True,refresh=True)
+            elif row == self.rows['Journals']['idx']:
+                lpm = LeftPanelMenu(name,child,add=True,refresh=True)
+            elif row == self.rows['Saved searches']['idx']:
+                lpm = LeftPanelMenu(name,child,add=True,refresh=True)
+
+            if child is not None:
+                # Must be an item with sub items
+                if row == self.rows['Libraries']['idx']:
+                    lpm = LeftPanelMenu(name,child,edit=True,delete=True,refresh=True)
+                elif self.rows['Journals']['idx']:
+                    lpm = LeftPanelMenu(name,child,edit=True,delete=True,refresh=True)
+                elif self.rows['Saved searches']['idx']:
+                    lpm = LeftPanelMenu(name,child,edit=True,delete=True,refresh=True)
+
+            lpm.popup_at_pointer(event)
+
+
 
 
 class Search(object):
@@ -373,7 +397,7 @@ class ShowJournal(object):
         # Creating the ListStore model
         for paper in self.journal:
             pdficon = 'go-down'
-            if os.path.exists(os.path.join(adsdata.pdffolder,paper.filename)):
+            if os.path.exists(paper.filename(True)):
                 pdficon = 'x-office-document'
 
             authors = paper.authors.split(';')[1:]
@@ -502,7 +526,7 @@ class ShowPDF(object):
         if adsdata.pdffolder is None:
             ShowOptionsMenu()
 
-        self._filename = os.path.join(adsdata.pdffolder,self.data.filename)
+        self._filename = self.data.filename(True)
 
     def download(self):
         def get_pdf():
@@ -521,8 +545,6 @@ class ShowPDF(object):
             
 
     def add(self):
-        print('Start',self._filename)
-
         for p in range(self.notebook.get_n_pages()):
             page = self.notebook.get_nth_page(p)
             if self.data.bibcode == page.astroref_name:
@@ -541,7 +563,6 @@ class ShowPDF(object):
             pass
 
     def show(self):
-        print('Start show')
         try:
             doc = EvinceDocument.Document.factory_get_document('file://'+self._filename)
         except gi.repository.GLib.Error:
@@ -692,7 +713,7 @@ class PDFPopupWindow(Gtk.EventBox):
         self.on_tab_close(widget)
 
     def bp_del(self, widget, event):
-        os.remove(os.path.join(adsdata.pdffolder,self.data.filename))
+        os.remove(self.data.filename(True))
         self.on_tab_close(widget)
 
 
@@ -883,6 +904,118 @@ class AddSavedSearch(Gtk.Window):
         print('Saving',name,query,description)
         self.destroy()
 
+
+class LeftPanelMenu(Gtk.Menu):
+    def __init__(self,name,child=None,add=False,edit=False,delete=False,refresh=True):
+        Gtk.Menu.__init__(self)
+        self.name = name
+        self.child = child
+        print(name,child)
+
+        if add:
+            self.add = Gtk.MenuItem(label='Add')
+            self.append(self.add)
+            self.add.show()
+            self.add.connect('activate', self.on_click_add)
+
+        if edit:
+            self.edit = Gtk.MenuItem(label='Edit')
+            self.append(self.edit)
+            self.edit.show()
+            self.edit.connect('activate', self.on_click_edit)
+
+        if delete:
+            self.delete = Gtk.MenuItem(label='Delete')
+            self.append(self.delete)
+            self.delete.show()
+
+        if refresh:
+            self.refresh = Gtk.MenuItem(label='Refresh')
+            self.append(self.refresh)
+            self.refresh.show()
+
+        self.show_all()
+
+
+    def on_click_add(self, button):
+        EditLibrary(self.name,add=True)
+
+    def on_click_edit(self, button):
+        EditLibrary(self.name,add=False)
+
+class EditLibrary(Gtk.Window):
+    def __init__(self, name=None,add=True):
+
+        if add:
+            title = 'New library'
+        else:
+            title = 'Edit library'
+
+        Gtk.Window.__init__(self, title=title)
+
+        self._name = name
+        self._description = ''
+        self._public=False
+        if self._name is not None:
+            if self._name in adsdata.libraries:
+                self._lib = adsdata.libraries[self._name]
+                self._description = self._lib.description
+                self._public = self._lib.public
+
+
+        self.set_border_width(10)
+        self.set_position(Gtk.WindowPosition.CENTER)
+
+
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
+        self.name = Gtk.Entry()
+        self.name.set_placeholder_text('Name')
+        self.name.set_text(self._name)
+        vbox.pack_start(self.name, True, True, 0)
+
+        self.description = Gtk.Entry()
+        self.description.set_placeholder_text('Description')
+        self.description.set_text(self._description)
+        vbox.pack_start(self.description, True, True, 0)
+
+
+        hbox = Gtk.Box(spacing=6)
+        vbox.add(hbox)
+        button1 = Gtk.RadioButton.new_with_label_from_widget(None, "Public")
+        button2 = Gtk.RadioButton.new_from_widget(button1)
+        button2.set_label("Private")
+
+        button1.connect("toggled", self.on_button_toggled, "public")
+        button2.connect("toggled", self.on_button_toggled, "private")
+        hbox.pack_start(button1, False, False, 0)
+        hbox.pack_start(button2, False, False, 0)
+
+        if self._public:
+            button1.set_active(True)
+        else:
+            button2.set_active(True)
+
+
+        save = Gtk.Button(label='Save')
+        save.connect('clicked', self.on_save)
+
+        vbox.pack_start(save, True,True,0)
+
+        self.add(vbox)
+        self.show_all()
+
+    def on_button_toggled(self, button, name):
+        print(name,button.get_active())
+
+
+
+    def on_save(self, button):
+        name = self.name.get_text()
+        query = self.query
+        description = self.name.get_text()
+        print('Saving',name,query,description)
+        self.destroy()
 
 
 

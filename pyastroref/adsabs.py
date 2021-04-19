@@ -513,9 +513,11 @@ class article(object):
             self.search()
         return self._data.bibstem[0]
 
-    @property
-    def filename(self):
-        return self.bibcode+'.pdf'
+    def filename(self, full=False):
+        if full:
+            return os.path.join(adsabs().pdffolder,self.bibcode+'.pdf')
+        else:
+            return self.bibcode+'.pdf'
 
     @property
     def year(self):
@@ -676,7 +678,7 @@ class search(object):
             return journal(self.token,bibs,data=[art._data])
 
         # Proberbly an ads query
-        data = list(ads.SearchQuery(q=query,fl=_fields))
+        data = list(ads.SearchQuery(q=query,fl=_fields,rows=200))
         bibs = [i.bibcode for i in data]
         return journal(self.token,bibs,data=data)
 
