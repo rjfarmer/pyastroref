@@ -429,7 +429,7 @@ class ShowJournal(object):
     def int_compare(self, model, row1, row2, user_data):
         value1 = int(model.get_value(row1, user_data))
         value2 = int(model.get_value(row2, user_data))
-        if value1 < value2:
+        if value1 > value2:
             return -1
         elif value1 == value2:
             return 0
