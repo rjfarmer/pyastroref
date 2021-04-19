@@ -468,7 +468,6 @@ class ShowJournal(object):
 
         title = col.get_title()
         if event.button == Gdk.BUTTON_PRIMARY: # left click
-            print('Here')
             if title == 'Bibtex':
                 clipboard(article.bibtex(text=True))
             elif title == "First Author":
@@ -791,7 +790,7 @@ class JournalPopupWindow(Gtk.EventBox):
 
 
     def bp_bib(self, widget, event):
-        #clipboard(self.data.bibtex(text=True))
+        clipboard(self.data.bibtex(text=True))
         return True
 
     def bp_add_lib(self, widget, event):
