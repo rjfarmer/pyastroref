@@ -276,7 +276,7 @@ class LeftPanel(object):
                     ShowOptionsMenu()
                     return
                 def func():
-                    return adsdata.search('orcid:"'+str(adsdata.orcid) +'"')
+                    return adsSearch.orcid(adsdata.orcid)
                 target = func
             elif row == self.rows['Libraries']['idx']:
                 # TODO: Refresh data
@@ -294,7 +294,7 @@ class LeftPanel(object):
                 if row == self.rows['Libraries']['idx']:
                     def func():
                         bibcodes = adsdata.libraries[child].keys()
-                        return adsabs.chunked_search(adsdata.token,bibcodes,'bibcode:')
+                        return adsSearch.bibcode_multi(bibcodes)
                     target = func
                 elif self.rows['Journals']['idx']:
                     def func():
@@ -495,9 +495,8 @@ class ShowJournal(object):
             if title == 'Bibtex':
                 clipboard(article.bibtex(text=True))
             elif title == "First Author":
-                q = 'author:"^'+article.first_author+'"'
                 def func():
-                    return adsSearch.search(q)
+                    return adsSearch.first_author(article.first_author)
                 ShowJournal(func,self.notebook,q)
             elif title == 'Citations':
                 ShowJournal(article.citations,self.notebook,'Cites:'+article.name)

@@ -1,6 +1,5 @@
 pycairo
 PyGObject
-ads
 feedparser
 bibtexparser
 appdirs

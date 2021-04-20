@@ -6,7 +6,6 @@ import requests
 import datetime
 from pathlib import Path
 
-import ads
 import bibtexparser
 from bibtexparser.bparser import BibTexParser
 import feedparser
@@ -33,7 +32,7 @@ _urls = {
     'documents' :_base_url+'/documents',
     'permissions' :_base_url+'/permissionss',
     'transfer' :_base_url+'/transfer',
-    'search': 'https://api.adsabs.harvard.edu/v1/search',
+    'search': 'https://api.adsabs.harvard.edu/v1/search/query',
     'pdfs': 'https://ui.adsabs.harvard.edu/link_gateway/',
     'metrics': 'https://api.adsabs.harvard.edu/v1/metrics',
     'bibtex' : 'https://api.adsabs.harvard.edu/v1/export/bibtex'
@@ -63,6 +62,11 @@ search_words = '''abs abstract ack aff aff_id alternate_bibcode alternative_titl
                 '''.split()
 
 
+# How many queries left today
+_max_limit = 5000
+_limit = 5000
+
+
 # Handles setting the ADS dev token during a request call
 # Use as requests.get(url,auth=_BearerAuth(ADS_TOKEN)
 class _BearerAuth(requests.auth.AuthBase):
@@ -71,35 +75,6 @@ class _BearerAuth(requests.auth.AuthBase):
     def __call__(self, r):
         r.headers["authorization"] = "Bearer " + str(self.token)
         return r
-
-# Just makes sure we have a list of strings
-def _ensure_list(s):
-    return s if isinstance(s, list) else list(s)
-
-def _chunked_join(data,prefix='',joiner='',nmax=20):
-    '''
-    Breaks data into chunks of maxium size nmax
-
-    Each element of the chunked data is prefixed with prefix and joined back together with joiner
-
-    data = ['1','2','3','4']
-    _chunked_join(data,prefix='bibcode:','joiner=' OR ',nmax=2)
-
-    ['bibcode:1 OR bibcode:2','bibcode:3 OR bibcode:4']
-
-    Handy to break up large queries that might exceed search limits (seems to be a max of 50
-    bibcodes or arxiv ids at a time).
-    Where prefix is the ads term ('bibcode:' or 'indentifier:')
-    and joiner is logical or ' OR '
-
-    '''
-    res = []
-
-    for pos in range(0, len(data), nmax):
-        x = [prefix+j for j in data[pos:pos + nmax]]
-        res.append(joiner.join(x))
-
-    return res
 
 
 class adsabs(object):
@@ -118,7 +93,6 @@ class adsabs(object):
                     self._token = f.readline().strip() 
             except FileNotFoundError:
                 return None
-        ads.config.token = self._token
         return self._token
 
     @token.setter
@@ -353,7 +327,7 @@ class library(object):
         '''
         Add bibcode to library
         '''
-        data = {'bibcode':_ensure_list(bibcode),"action":"add"}
+        data = {'bibcode':self._ensure_list(bibcode),"action":"add"}
         r = requests.post(self.url_docs(),
                 auth=_BearerAuth(self.token),
                 headers={'Content-Type':'application/json'},
@@ -366,7 +340,7 @@ class library(object):
         '''
         Remove bibcode from library
         '''
-        data = {'bibcode':_ensure_list(bibcode),"action":"remove"}
+        data = {'bibcode':self._ensure_list(bibcode),"action":"remove"}
         r = requests.post(self.url_docs(),
                 auth=_BearerAuth(self.token),
                 headers={'Content-Type':'application/json'},
@@ -395,6 +369,10 @@ class library(object):
     def reset(self):
         self._n = 0
 
+    # Just makes sure we have a list of strings
+    def _ensure_list(self, s):
+        return s if isinstance(s, list) else list(s)
+
 class journal(object):
     '''
     This is a collection of articles that supports iterating over.
@@ -409,7 +387,7 @@ class journal(object):
 
         if data is not None:
             for i in data:
-                self._data[i.bibcode] = article(self.token, i.bibcode, data=i)
+                self._data[i['bibcode']] = article(self.token, i['bibcode'], data=i)
 
         self._n = 0
 
@@ -458,11 +436,9 @@ class article(object):
     without hitting the ADS api limits.
     '''
 
-    def __init__(self, token, bibcode=None, doi=None, arxiv=None, data=None):
+    def __init__(self, token, bibcode=None, data=None):
         self.token = token
         self._bibcode = bibcode
-        self.doi = doi
-        self.arxiv = arxiv
         self._data = None
         self._citations=None
         self._references=None
@@ -470,25 +446,14 @@ class article(object):
 
         if data is not None:
             self._data = data
-            self._bibcode = self._data.bibcode
+            self._bibcode = self._data['bibcode']
     
     def search(self,force=False):
         if self._data is None or force:
-            self._data = list(ads.SearchQuery(bibcode=self.bibcode,
-                            fl=_fields,rows=1))[0]
-
+            self._data = search(self.token).bibcode_single(self.bibcode)
+            
     @property
     def bibcode(self):
-        if self._bibcode is None:
-            if self.doi is not None:
-                self._data = list(ads.SearchQuery(doi=self.doi,
-                                fl=_fields,rows=1))[0]
-            elif self.arxiv is not None:
-                self._data = list(ads.SearchQuery(q='identifier:'+self.arxiv,
-                                fl=_fields,rows=1))[0]
-            else:
-                raise AttributeError('Must set either bibcode, doi, or arxiv')
-            self._bibcode = self._data.bibcode
         return self._bibcode
 
     def __gettattr__(self, key):
@@ -500,31 +465,31 @@ class article(object):
     def title(self):
         if self._data is None:
             self.search()
-        return self._data.title[0]
+        return self._data['title'][0]
 
     @property
     def authors(self):
         if self._data is None:
             self.search()
-        return  '; '.join(self._data.author)
+        return  '; '.join(self._data['author'])
 
     @property
     def first_author(self):
         if self._data is None:
             self.search()
-        return self._data.author[0]
+        return self._data['author'][0]
 
     @property
     def pubdate(self):
         if self._data is None:
             self.search()
-        return self._data.pubdate
+        return self._data['pubdate']
 
     @property
     def journal(self):
         if self._data is None:
             self.search()
-        return self._data.bibstem[0]
+        return self._data['bibstem'][0]
 
     def filename(self, full=False):
         if full:
@@ -536,13 +501,13 @@ class article(object):
     def year(self):
         if self._data is None:
             self.search()
-        return self._data.year
+        return self._data['year']
 
     @property
     def abstract(self):
         if self._data is None:
             self.search()
-        return self._data.abstract
+        return self._data['abstract']
 
     @property
     def name(self):
@@ -561,7 +526,7 @@ class article(object):
         if self._data is None:
             self.search()
         arxiv_id = None
-        for i in self._data.identifier:
+        for i in self._data['identifier']:
             if i.startswith('arXiv:'):
                 arxiv_id = i.replace('arXiv:','')
 
@@ -575,7 +540,7 @@ class article(object):
         if self._data is None:
             self.search()
         doi = None
-        for i in self._data.identifier:
+        for i in self._data['identifier']:
             if i.startswith('10.'):
                 doi = i
         if doi is not None:
@@ -587,16 +552,16 @@ class article(object):
     def citation_count(self):
         if self._data is None:
             self.search()
-        return self._data.citation_count
+        return self._data['citation_count']
 
     @property
     def reference_count(self):
         if self._data is None:
             self.search()
-        if self._data.reference is None:
+        if 'reference' not in self._data:
             return 0
         else:
-            return len(self._data.reference)
+            return len(self._data['reference'])
     
     def pdf(self, filename):
         # There are multiple possible locations for the pdf
@@ -630,16 +595,12 @@ class article(object):
 
     def citations(self):
         if self._citations is None:
-            data = list(ads.SearchQuery(q='citations(bibcode:"'+self._bibcode+'")',fl=_fields))
-            bibs = [i.bibcode for i in data]
-            self._citations = journal(self.token,bibs,data=data)
+            self._citations = search(self.token).search('citations(bibcode:"'+self._bibcode+'")')
         return self._citations
 
     def references(self):
         if self._references is None:
-            data = list(ads.SearchQuery(q='references(bibcode:"'+self._bibcode+'")',fl=_fields))
-            bibs = [i.bibcode for i in data]
-            self._references = journal(self.token,bibs,data=data)
+            self._references = search(self.token).search('references(bibcode:"'+self._bibcode+'")')
         return self._references 
 
     def bibtex(self,filename=None,text=True):
@@ -678,22 +639,27 @@ class search(object):
         res = self._process_url(query)
         if len(res):
             # A url
-            art = article(self.token, **res)# Either bibcode, doi or arxiv id
-            bibs = [art.bibcode]
-            return journal(self.token,bibs,data=[art._data])
+            query = self.make_query(res)
 
         # Is it a bibtex?
         res = self._process_bibtex(query)
         if len(res):
             # A bibtex
-            art = article(self.token, **res)# Either bibcode, doi or arxiv id
-            bibs = [art.bibcode]
-            return journal(self.token,bibs,data=[art._data])
+            query = self.make_query(res)
 
-        # Proberbly an ads query
-        data = list(ads.SearchQuery(q=query,fl=_fields,rows=200))
-        bibs = [i.bibcode for i in data]
+        bibs, data = self._query(query)
         return journal(self.token,bibs,data=data)
+
+    def make_query(self,identifer):
+        q=''
+        if 'bibcode' in identifer:
+            q = 'bibcode:'+identifer['bibcode']
+        elif 'arxiv' in identifer:
+            q = 'arxiv:'+identifer['arxiv']
+        elif 'doi' in identifer['doi']:
+            q = 'doi:'+identifer['doi']
+
+        return q
 
     def _process_bibtex(self, query):
         res = {}
@@ -711,6 +677,65 @@ class search(object):
             else:
                 raise ValueError("Don't understand this bitex")
         return res
+
+
+    def _query(self, query):
+
+        start = 0
+        results = []
+        while True:
+            r = self._query_ads(query,start)
+
+            # Did we get everything?
+            data = r.json()
+            results.extend(data['response']['docs'])
+            num_found = int(data['response']['numFound'])
+            num_got = len(results)
+
+            if num_got >= num_found:
+                break
+
+            start = len(results)
+
+        bibcodes = [i['bibcode'] for i in results]
+
+        return bibcodes, results
+
+    def _query_ads(self, query, start=0):
+        r = requests.get(_urls['search'],
+                            auth=_BearerAuth(self.token),
+                            params={
+                                'q':query,
+                                'fl':_fields,
+                                'rows':100,
+                                'start':start
+                            }
+                        )
+        # Get rate limits
+        try:
+            _limit = int(r.headers['X-RateLimit-Remaining'])
+            _max_limit = int(r.headers['X-RateLimit-Limit'])
+        except KeyError:
+            pass
+
+        return r
+
+
+    def bibcode_single(self, bibcode):
+        return self.search('bibcode:"'+str(bibcode) +'"')
+
+
+    def bibcode_multi(self, bibcodes):
+        pass
+
+    def arxiv_multi(self, arxivids):
+        pass
+
+    def orcid(self, orcid):
+        return self.search('orcid:"'+str(orcid) +'"')
+
+    def first_author(self, author):
+        return self.search('author:"^'+author+'"')
 
 
     def _process_url(self, url):
@@ -773,17 +798,43 @@ class search(object):
         return res
 
 
-def chunked_search(token,ids,prefix):
-        # Break up data into chunks to process otherwise we max at 50 entries:
-        query = _chunked_join(ids,prefix=prefix,joiner=' OR ')
-        sdata = []
-        for i in query:
-            sdata.append(list(ads.SearchQuery(q=i,fl=_fields)))
+    def chunked_search(self, token,ids,prefix):
+            # Break up data into chunks to process otherwise we max at 50 entries:
+            query = self.chunked_join(ids,prefix=prefix,joiner=' OR ')
+            sdata = []
+            for i in query:
+                sdata.append(list(ads.SearchQuery(q=i,fl=_fields)))
 
-        data = [item for sublist in sdata for item in sublist]
+            data = [item for sublist in sdata for item in sublist]
 
-        bibs = [i.bibcode for i in data]
-        return journal(token,bibcodes=bibs,data=data)
+            bibs = [i.bibcode for i in data]
+            return journal(token,bibcodes=bibs,data=data)
+
+
+    def chunked_join(self, data,prefix='',joiner='',nmax=20):
+        '''
+        Breaks data into chunks of maximum size nmax
+
+        Each element of the chunked data is prefixed with prefix and joined back together with joiner
+
+        data = ['1','2','3','4']
+        _chunked_join(data,prefix='bibcode:','joiner=' OR ',nmax=2)
+
+        ['bibcode:1 OR bibcode:2','bibcode:3 OR bibcode:4']
+
+        Handy to break up large queries that might exceed search limits (seems to be a max of 50
+        bibcodes or arxiv ids at a time).
+        Where prefix is the ads term ('bibcode:' or 'indentifier:')
+        and joiner is logical or ' OR '
+
+        '''
+        res = []
+
+        for pos in range(0, len(data), nmax):
+            x = [prefix+j for j in data[pos:pos + nmax]]
+            res.append(joiner.join(x))
+
+        return res
 
 
 
@@ -804,7 +855,7 @@ class arxivrss(object):
             thismonth = str(today.year-2000)+str(today.month).zfill(2)
             arxiv_ids = [i for i in arxiv_ids if i.startswith(thismonth)]
 
-            self._data = chunked_search(self.token,arxiv_ids,'identifier:')
+            self._data = search(self.token).arxiv_multi(arxiv_ids)
 
         return self._data
 
@@ -898,11 +949,9 @@ class JournalData(object):
             pubdata+= str(today.year) +"-"+ str(today.month).zfill(2)
             pubdata+=']'
 
-            data = list(ads.SearchQuery(q='bibstem:"'+name+'" AND '+pubdata,
-                    fl=_fields))
+            query = 'bibstem:"'+name+'" AND '+pubdata
 
-            bibs = [i.bibcode for i in data]
-            self._results[name] = journal(self.token,bibs,data=data)
+            self._results[name] = search(self.token).search(query)
 
         self._results[name].reset()
         return self._results[name]
