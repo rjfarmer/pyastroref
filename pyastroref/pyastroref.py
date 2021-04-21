@@ -41,7 +41,7 @@ class MainWindow(Gtk.Window):
         self.setup_grid()  
 
         if adsdata.token is None:
-            ShowOptionsMenu()
+            OptionsMenu()
 
 
     def setup_headerbar(self):
@@ -58,7 +58,7 @@ class MainWindow(Gtk.Window):
 
 
     def on_click_load_options(self, button):
-        ShowOptionsMenu()
+        OptionsMenu()
 
     def options_menu(self):
         self.button_opt = Gtk.Button()
@@ -115,15 +115,10 @@ class MainWindow(Gtk.Window):
         self.grid.add(self.panels)
 
 
-def ShowOptionsMenu():
-    win = OptionsMenu()
-    win.set_position(Gtk.WindowPosition.CENTER)
-    win.show_all()
-
-
 class OptionsMenu(Gtk.Window):
     def __init__(self):
         Gtk.Window.__init__(self, title="Options")
+        self.set_position(Gtk.WindowPosition.CENTER)
 
         grid = Gtk.Grid()
         self.add(grid)
@@ -182,6 +177,7 @@ class OptionsMenu(Gtk.Window):
                             Gtk.PositionType.BOTTOM,1,1)
         grid.attach_next_to(self.folder_entry,file_label,
                             Gtk.PositionType.RIGHT,1,1)        
+        self.show_all()   
 
     def save_ads(self, button):
         value = self.ads_entry.get_text()
@@ -275,7 +271,7 @@ class LeftPanel(object):
                 target = adsabs.arxivrss(adsdata.token).articles
             elif row == self.rows['ORCID']['idx']:
                 if adsdata.orcid is None:
-                    ShowOptionsMenu()
+                    OptionsMenu()
                     return
                 def func():
                     return adsSearch.orcid(adsdata.orcid)
@@ -512,7 +508,7 @@ class ShowPDF(object):
         self.header = PDFPopupWindow(self.notebook, self.page, self.data)
 
         if adsdata.pdffolder is None:
-            ShowOptionsMenu()
+            OptionsMenu()
 
         self._filename = self.data.filename(True)
 
