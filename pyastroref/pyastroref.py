@@ -215,9 +215,21 @@ class LeftPanel(object):
         self.store = Gtk.TreeStore(str)
         self.notebook = notebook
 
+        self.make_rows()
+
+
+        self.tree = Gtk.TreeView(model=self.store)
+
+        renderer = Gtk.CellRendererText()
+        column = Gtk.TreeViewColumn("", renderer, text=0)
+        self.tree.append_column(column)
+
+        #self.tree.get_selection().connect('changed' , self.row_selected)
+        self.tree.connect('button-press-event' , self.button_press_event)
+
+
+    def make_rows(self):
         self.rows = {}
-
-
         for idx,i in enumerate(self._fields):
             self.rows[i] = {
                             'row': self.store.append(None,[i]),
@@ -230,16 +242,6 @@ class LeftPanel(object):
 
         for i in adsJournals.list_defaults():
             self.store.append(self.rows['Journals']['row'],[adsJournals.default_journals[i]])
-
-
-        self.tree = Gtk.TreeView(model=self.store)
-
-        renderer = Gtk.CellRendererText()
-        column = Gtk.TreeViewColumn("", renderer, text=0)
-        self.tree.append_column(column)
-
-        #self.tree.get_selection().connect('changed' , self.row_selected)
-        self.tree.connect('button-press-event' , self.button_press_event)
 
 
     def button_press_event(self, treeview, event):
@@ -314,7 +316,8 @@ class LeftPanel(object):
             elif row == self.rows['ORCID']['idx']:
                 lpm = LeftPanelMenu(name,child,refresh=True)
             elif row == self.rows['Libraries']['idx']:
-                lpm = LeftPanelMenu(name,child,add=True,refresh=True)
+                lpm = LeftPanelMenu(name,child,add=True,refresh=True,
+                                    refresh_callback=self.up_alllibs)
             elif row == self.rows['Journals']['idx']:
                 lpm = LeftPanelMenu(name,child,add=True,refresh=True)
             elif row == self.rows['Saved searches']['idx']:
@@ -323,13 +326,18 @@ class LeftPanel(object):
             if child is not None:
                 # Must be an item with sub items
                 if row == self.rows['Libraries']['idx']:
-                    lpm = LeftPanelMenu(name,child,edit=True,delete=True,refresh=True)
+                    lpm = LeftPanelMenu(name,child,edit=True,delete=True,refresh=True,
+                                        refresh_callback=self.up_alllibs)
                 elif self.rows['Journals']['idx']:
                     lpm = LeftPanelMenu(name,child,edit=True,delete=True,refresh=True)
                 elif self.rows['Saved searches']['idx']:
                     lpm = LeftPanelMenu(name,child,edit=True,delete=True,refresh=True)
 
             lpm.popup_at_pointer(event)
+
+    def up_alllibs(self, name):
+        self.store.clear()
+        self.make_rows()
 
 
 class ShowJournal(object):
@@ -890,10 +898,12 @@ class AddSavedSearch(Gtk.Window):
 
 
 class LeftPanelMenu(Gtk.Menu):
-    def __init__(self,name,child=None,add=False,edit=False,delete=False,refresh=True):
+    def __init__(self,name,child=None,add=False,edit=False,delete=False,refresh=True,
+                refresh_callback=None):
         Gtk.Menu.__init__(self)
         self.name = name
         self.child = child
+        self.refresh_callback = refresh_callback
 
         if add:
             self.add = Gtk.MenuItem(label='Add')
@@ -917,27 +927,38 @@ class LeftPanelMenu(Gtk.Menu):
             self.refresh = Gtk.MenuItem(label='Refresh')
             self.append(self.refresh)
             self.refresh.show()
+            self.refresh.connect('activate', self.on_click_refresh)
 
         self.show_all()
 
 
     def on_click_add(self, button):
-        EditLibrary(None,add=True)
+        EditLibrary(None,add=True, callback=self.refresh_callback)
 
     def on_click_edit(self, button):
         name = self.name
         if self.child is not None:
             name=self.child
-        EditLibrary(name,add=False)
+        EditLibrary(name,add=False, callback=self.refresh_callback)
 
     def on_click_delete(self, button):
         name = self.name
         if self.child is not None:
             name=self.child
         adsdata.libraries.remove(name)
+        if self.refresh_callback is not None:
+            self.refresh_callback(name)
+
+    def on_click_refresh(self, button):
+        name = self.name
+        if self.child is not None:
+            name=self.child
+        if self.refresh_callback is not None:
+            self.refresh_callback(name)
+
 
 class EditLibrary(Gtk.Window):
-    def __init__(self, name=None,add=True):
+    def __init__(self, name=None,add=True, callback=None):
         self._add = add
         if self._add:
             title = 'New library'
@@ -949,6 +970,8 @@ class EditLibrary(Gtk.Window):
         self._name = name
         self._description = ''
         self._public=False
+        self._callback = callback
+
         if self._name is not None:
             if self._name in adsdata.libraries:
                 self._lib = adsdata.libraries[self._name]
@@ -1004,10 +1027,12 @@ class EditLibrary(Gtk.Window):
         description = self.description.get_text()
         if self._add:
             adsdata.libraries.add(name,description,self.button1.get_active())
-            self.destroy()
         else:
             adsdata.libraries.edit(self._name, name,description,self.button1.get_active())
-            self.destroy()
+
+        if self._callback is not None:
+            self._callback(name)
+        self.destroy()
 
 def main():
     win = MainWindow()

@@ -233,6 +233,8 @@ class libraries(object):
         requests.delete(_urls['documents']+'/'+lid,
                 auth=_BearerAuth(self.token)
                 )
+        self.data.pop(name,None)
+
 
     def edit(self,name, name_new=None,description=None,public=False):
         '''
