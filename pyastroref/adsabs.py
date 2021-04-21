@@ -726,10 +726,11 @@ class search(object):
 
 
     def bibcode_multi(self, bibcodes):
-        pass
+        return self.chunked_search(bibcodes,'bibcode:')
 
     def arxiv_multi(self, arxivids):
-        pass
+        return self.chunked_search(arxivids,'identifier:')
+
 
     def orcid(self, orcid):
         return self.search('orcid:"'+str(orcid) +'"')
@@ -798,17 +799,17 @@ class search(object):
         return res
 
 
-    def chunked_search(self, token,ids,prefix):
-            # Break up data into chunks to process otherwise we max at 50 entries:
-            query = self.chunked_join(ids,prefix=prefix,joiner=' OR ')
-            sdata = []
-            for i in query:
-                sdata.append(list(ads.SearchQuery(q=i,fl=_fields)))
+    def chunked_search(self, ids, prefix):
+        # Break up data into chunks to process otherwise we max at 50 entries:
+        query = self.chunked_join(ids,prefix=prefix,joiner=' OR ')
+        alldata = []
+        allbibs=[]
+        for i in query:
+            bibs, data = self._query(i)
+            alldata.extend(data)
+            allbibs.extend(bibs)
 
-            data = [item for sublist in sdata for item in sublist]
-
-            bibs = [i.bibcode for i in data]
-            return journal(token,bibcodes=bibs,data=data)
+        return journal(self.token,bibcodes=allbibs,data=alldata)
 
 
     def chunked_join(self, data,prefix='',joiner='',nmax=20):

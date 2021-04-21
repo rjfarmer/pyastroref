@@ -2,7 +2,7 @@
 Type=Application
 Encoding=UTF-8
 Name=pyAstroRef
-GenericNAme=Reference manager
+GenericName=Reference manager
 Comment=The astronomer's reference manager.
 Exec=pyastroref --pdfs %F
 Terminal=false

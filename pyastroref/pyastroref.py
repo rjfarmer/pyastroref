@@ -70,7 +70,6 @@ class MainWindow(Gtk.Window):
 
     def setup_search_bar(self):
         self.search = Gtk.SearchEntry()
-        #self.search.set_width_chars(100)
         self.search.set_placeholder_text('Search ADS ...')
         self.search.connect("activate",self.on_click_search)
 
@@ -84,7 +83,10 @@ class MainWindow(Gtk.Window):
         if len(query) == 0:
             return
 
-        Search(query, self.right_panel)
+        def target():
+            return adsSearch.search(query)
+
+        ShowJournal(target,self.right_panel,query)
 
     def setup_panels(self):
         self.panels = Gtk.HPaned()
@@ -332,19 +334,6 @@ class LeftPanel(object):
                     lpm = LeftPanelMenu(name,child,edit=True,delete=True,refresh=True)
 
             lpm.popup_at_pointer(event)
-
-
-
-
-class Search(object):
-    def __init__(self, query, notebook):
-        self._query = query
-        self.notebook = notebook
-
-        def target():
-            return adsdata.search(query)
-
-        ShowJournal(target,self.notebook,query)  
 
 
 class ShowJournal(object):
