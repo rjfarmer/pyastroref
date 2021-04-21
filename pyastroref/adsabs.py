@@ -234,6 +234,31 @@ class libraries(object):
                 auth=_BearerAuth(self.token)
                 )
 
+    def edit(self,name, name_new=None,description=None,public=False):
+        '''
+        Edit metadata of a given library
+        '''
+        if name not in self.data.keys():
+            raise KeyError('Library does not exit')
+
+        lid = self.data[name]['id']
+
+        if name_new is not None:
+            if len(name):
+                name = name_new
+        
+        data = {
+            'name':name,
+            'public':public,
+            'description':description
+            }
+        requests.put(_urls['documents']+'/'+lid,
+                auth=_BearerAuth(self.token),
+                headers={'Content-Type':'application/json'},
+                json = data
+                )
+
+
     def keys(self):
         if self.data is None:
             self.update()
@@ -635,8 +660,10 @@ class search(object):
         self.token = token
 
     def search(self, query):
+        if not len(query):
+            return []
+
         # Check if url?
-        
         for func in [self._process_url,self._process_bibtex]:
             res = func(query)
             if len(res):

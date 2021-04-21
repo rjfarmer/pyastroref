@@ -894,7 +894,6 @@ class LeftPanelMenu(Gtk.Menu):
         Gtk.Menu.__init__(self)
         self.name = name
         self.child = child
-        print(name,child)
 
         if add:
             self.add = Gtk.MenuItem(label='Add')
@@ -912,6 +911,7 @@ class LeftPanelMenu(Gtk.Menu):
             self.delete = Gtk.MenuItem(label='Delete')
             self.append(self.delete)
             self.delete.show()
+            self.delete.connect('activate', self.on_click_delete)
 
         if refresh:
             self.refresh = Gtk.MenuItem(label='Refresh')
@@ -922,15 +922,24 @@ class LeftPanelMenu(Gtk.Menu):
 
 
     def on_click_add(self, button):
-        EditLibrary(self.name,add=True)
+        EditLibrary(None,add=True)
 
     def on_click_edit(self, button):
-        EditLibrary(self.name,add=False)
+        name = self.name
+        if self.child is not None:
+            name=self.child
+        EditLibrary(name,add=False)
+
+    def on_click_delete(self, button):
+        name = self.name
+        if self.child is not None:
+            name=self.child
+        adsdata.libraries.remove(name)
 
 class EditLibrary(Gtk.Window):
     def __init__(self, name=None,add=True):
-
-        if add:
+        self._add = add
+        if self._add:
             title = 'New library'
         else:
             title = 'Edit library'
@@ -955,7 +964,8 @@ class EditLibrary(Gtk.Window):
 
         self.name = Gtk.Entry()
         self.name.set_placeholder_text('Name')
-        self.name.set_text(self._name)
+        if self._name is not None:
+            self.name.set_text(self._name)
         vbox.pack_start(self.name, True, True, 0)
 
         self.description = Gtk.Entry()
@@ -966,19 +976,19 @@ class EditLibrary(Gtk.Window):
 
         hbox = Gtk.Box(spacing=6)
         vbox.add(hbox)
-        button1 = Gtk.RadioButton.new_with_label_from_widget(None, "Public")
-        button2 = Gtk.RadioButton.new_from_widget(button1)
-        button2.set_label("Private")
+        self.button1 = Gtk.RadioButton.new_with_label_from_widget(None, "Public")
+        self.button2 = Gtk.RadioButton.new_from_widget(self.button1)
+        self.button2.set_label("Private")
 
-        button1.connect("toggled", self.on_button_toggled, "public")
-        button2.connect("toggled", self.on_button_toggled, "private")
-        hbox.pack_start(button1, False, False, 0)
-        hbox.pack_start(button2, False, False, 0)
+        #button1.connect("toggled", self.on_button_toggled, "public")
+        #button2.connect("toggled", self.on_button_toggled, "private")
+        hbox.pack_start(self.button1, False, False, 0)
+        hbox.pack_start(self.button2, False, False, 0)
 
         if self._public:
-            button1.set_active(True)
+            self.button1.set_active(True)
         else:
-            button2.set_active(True)
+            self.button2.set_active(True)
 
 
         save = Gtk.Button(label='Save')
@@ -989,19 +999,15 @@ class EditLibrary(Gtk.Window):
         self.add(vbox)
         self.show_all()
 
-    def on_button_toggled(self, button, name):
-        print(name,button.get_active())
-
-
-
     def on_save(self, button):
         name = self.name.get_text()
-        query = self.query
-        description = self.name.get_text()
-        print('Saving',name,query,description)
-        self.destroy()
-
-
+        description = self.description.get_text()
+        if self._add:
+            adsdata.libraries.add(name,description,self.button1.get_active())
+            self.destroy()
+        else:
+            adsdata.libraries.edit(self._name, name,description,self.button1.get_active())
+            self.destroy()
 
 def main():
     win = MainWindow()
