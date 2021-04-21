@@ -636,27 +636,24 @@ class search(object):
 
     def search(self, query):
         # Check if url?
-        res = self._process_url(query)
-        if len(res):
-            # A url
-            query = self.make_query(res)
-
-        # Is it a bibtex?
-        res = self._process_bibtex(query)
-        if len(res):
-            # A bibtex
-            query = self.make_query(res)
-
+        
+        for func in [self._process_url,self._process_bibtex]:
+            res = func(query)
+            if len(res):
+                query = self.make_query(res)
+                break
+        
+        print(query)
         bibs, data = self._query(query)
         return journal(self.token,bibs,data=data)
 
-    def make_query(self,identifer):
+    def make_query(self, identifer):
         q=''
         if 'bibcode' in identifer:
             q = 'bibcode:'+identifer['bibcode']
         elif 'arxiv' in identifer:
             q = 'arxiv:'+identifer['arxiv']
-        elif 'doi' in identifer['doi']:
+        elif 'doi' in identifer:
             q = 'doi:'+identifer['doi']
 
         return q
