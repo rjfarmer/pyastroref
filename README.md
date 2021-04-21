@@ -8,7 +8,7 @@ The astronomer's reference manager.
 ## Installation
 
 
-Get pyGTK from https://pygobject.readthedocs.io/en/latest/getting_started.html
+Follow the instructions to install  gtk and pygobject from https://pygobject.readthedocs.io/en/latest/getting_started.html
 
 Install dependices:
 
