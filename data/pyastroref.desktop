@@ -7,3 +7,4 @@ Comment=The astronomer's reference manager.
 Exec=pyastroref --pdfs %F
 Terminal=false
 MimeType=application/pdf
+StartupNotify=true
