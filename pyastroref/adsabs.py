@@ -579,7 +579,10 @@ class article(object):
     def citation_count(self):
         if self._data is None:
             self.search()
-        return self._data['citation_count']
+        if 'citation_count' not in self._data:
+            return 0
+        else:
+            return self._data['citation_count']
 
     @property
     def reference_count(self):
