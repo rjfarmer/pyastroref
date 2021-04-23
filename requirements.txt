@@ -3,3 +3,4 @@ PyGObject
 feedparser
 bibtexparser
 appdirs
+requests

@@ -336,6 +336,10 @@ class library(object):
     def keys(self):
         return self.docs
 
+    @property
+    def description(self):
+        return self.metadata['description']
+
     def __getitem__(self,key):
         if key in self.docs:
             return article(self.token,key)
@@ -907,7 +911,7 @@ class JournalData(object):
 
     def __init__(self, token):
         self.token = token
-        self._data = {}
+        self.all_journals = {}
         self._results = {}
         self.update_journals()
 
@@ -946,23 +950,23 @@ class JournalData(object):
                 print(key,value,file=f)
 
     def read_file(self):
-        self._data = {}
+        self.all_journals = {}
         with open(self._file,'r') as f:
             for line in f.readlines():
                 l = line.split()
                 value = l[-1]
                 key = ' '.join(l[:-1])
-                self._data[key.strip()] = value.strip()
+                self.all_journals[key.strip()] = value.strip()
 
         # Remove default journals
         for k in self.default_journals.keys():
-            self._data.pop(k, None)
+            self.all_journals.pop(k, None)
 
     def list_defaults(self):
         return self.default_journals.keys()
 
     def list_all(self):
-        return self._data.keys()
+        return self.all_journals.keys()
 
     def search(self, name):
         for key,value in self.default_journals.items():
