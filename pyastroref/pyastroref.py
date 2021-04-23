@@ -479,6 +479,8 @@ class ShowJournal(object):
         self.treeviewsorted.set_sort_func(5, self.int_compare, 5)
         self.treeviewsorted.set_sort_func(6, self.int_compare, 6)
 
+        self.treeview.get_column(2).clicked()
+
         #self.treeview.connect('row-activated' , self.button_press_event)
         self.treeview.connect('query-tooltip' , self.tooltip)
         self.treeview.connect('button-press-event' , self.button_press_event)
