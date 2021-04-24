@@ -4,8 +4,9 @@ import sys,os
 import argparse
 import threading
 
-from . import adsabs
-
+from .papers import adsabs as ads
+from .papers import collection
+from .papers import arxiv
 
 import gi
 gi.require_version("Gtk", "3.0")
@@ -19,10 +20,9 @@ from gi.repository import EvinceView
 EvinceDocument.init()
 
 
-adsdata=adsabs.adsabs()
-
-adsSearch = adsabs.search(adsdata.token)
-adsJournals = adsabs.JournalData(adsdata.token)
+adsData = ads.adsabs()
+adsSearch = ads.articles.search(adsData.token)
+adsJournals = collection.Collection(adsData.token)
 
 
 class MainWindow(Gtk.Window):
@@ -40,7 +40,7 @@ class MainWindow(Gtk.Window):
 
         self.setup_grid()  
 
-        if adsdata.token is None:
+        if adsData.token is None:
             OptionsMenu()
 
 
@@ -126,17 +126,17 @@ class OptionsMenu(Gtk.Window):
         self.ads_entry = Gtk.Entry()
         self.ads_entry.set_width_chars(50)
 
-        if adsdata.token is not None:
-            self.ads_entry.set_text(adsdata.token)
+        if adsData.token is not None:
+            self.ads_entry.set_text(adsData.token)
 
         self.orcid_entry = Gtk.Entry()
-        if adsdata.orcid is not None:
-            self.orcid_entry.set_text(adsdata.orcid)
+        if adsData.orcid is not None:
+            self.orcid_entry.set_text(adsData.orcid)
         self.orcid_entry.set_width_chars(50)
 
         label = "Choose Folder"
-        if adsdata.pdffolder is not None:
-            label = adsdata.pdffolder
+        if adsData.pdffolder is not None:
+            label = adsData.pdffolder
 
         self.folder_entry = Gtk.Button(label=label)
         self.folder_entry.connect("clicked", self.on_file_clicked)
@@ -180,12 +180,10 @@ class OptionsMenu(Gtk.Window):
         self.show_all()   
 
     def save_ads(self, button):
-        value = self.ads_entry.get_text()
-        adsdata.token = value
+        adsData.token = self.ads_entry.get_text()
 
     def save_orcid(self, button):
-        value = self.orcid_entry.get_text()
-        adsdata.orcid = value  
+        adsData.orcid = self.orcid_entry.get_text()
 
     def on_file_clicked(self, widget):
         dialog = Gtk.FileChooserDialog(
@@ -202,7 +200,7 @@ class OptionsMenu(Gtk.Window):
         if response == Gtk.ResponseType.OK:
             f = dialog.get_filename()
             widget.set_label(f)
-            adsdata.pdffolder = f
+            adsData.pdffolder = f
             
         dialog.destroy()
 
@@ -239,7 +237,7 @@ class LeftPanel(object):
                             'idx': idx
                             }
 
-        libs = adsdata.libraries.names()
+        libs = adsData.libraries.names()
         for i in libs:
             self.store.append(self.rows['Libraries']['row'],[i])
 
@@ -273,13 +271,13 @@ class LeftPanel(object):
                     return []
                 target = func
             elif row == self.rows['Arxiv']['idx']:
-                target = adsabs.arxivrss(adsdata.token).articles
+                target = arxiv.arxivrss(adsData.token).articles
             elif row == self.rows['ORCID']['idx']:
-                if adsdata.orcid is None:
+                if adsData.orcid is None:
                     OptionsMenu()
                     return
                 def func():
-                    return adsSearch.orcid(adsdata.orcid)
+                    return adsSearch.orcid(adsData.orcid)
                 target = func
             elif row == self.rows['Libraries']['idx']:
                 pass
@@ -293,7 +291,7 @@ class LeftPanel(object):
                 # Must be an item with sub items
                 if row == self.rows['Libraries']['idx']:
                     def func():
-                        bibcodes = adsdata.libraries[child].keys()
+                        bibcodes = adsData.libraries[child].keys()
                         return adsSearch.bibcode_multi(bibcodes)
                     target = func
                 elif self.rows['Journals']['idx']:
@@ -373,7 +371,7 @@ class LeftPanel(object):
             return True
             
         if name=='Libraries' and child is not None:
-            tooltip.set_text(adsdata.libraries[child].description)
+            tooltip.set_text(adsData.libraries[child].description)
             self.treeview.set_tooltip_row(tooltip, path)
             return True
 
@@ -557,7 +555,7 @@ class ShowPDF(object):
 
         self.header = PDFPopupWindow(self.notebook, self.page, self.data)
 
-        if adsdata.pdffolder is None:
+        if adsData.pdffolder is None:
             OptionsMenu()
 
         self._filename = self.data.filename(True)
@@ -873,7 +871,7 @@ class Add2Lib(Gtk.Window):
 
 
         self.combo = Gtk.ComboBoxText()
-        libs = adsdata.libraries.names()
+        libs = adsData.libraries.names()
         for i in libs:
             self.combo.append_text(i)
 
@@ -894,7 +892,7 @@ class Add2Lib(Gtk.Window):
         lib = self.combo.get_active_text()
         if lib is not None and len(self.bibcodes):
             print('Saving to ',lib)
-            adsdata.libraries[lib].add(self.bibcodes)
+            adsData.libraries[lib].add(self.bibcodes)
         self.destroy()
 
 class AddSavedSearch(Gtk.Window):
@@ -990,7 +988,7 @@ class LeftPanelMenu(Gtk.Menu):
         name = self.name
         if self.child is not None:
             name=self.child
-        adsdata.libraries.remove(name)
+        adsData.libraries.remove(name)
         if self.refresh_callback is not None:
             self.refresh_callback(name)
 
@@ -1018,8 +1016,8 @@ class EditLibrary(Gtk.Window):
         self._callback = callback
 
         if self._name is not None:
-            if self._name in adsdata.libraries:
-                self._lib = adsdata.libraries[self._name]
+            if self._name in adsData.libraries:
+                self._lib = adsData.libraries[self._name]
                 self._description = self._lib.description
                 self._public = self._lib.public
 
@@ -1071,9 +1069,9 @@ class EditLibrary(Gtk.Window):
         name = self.name.get_text()
         description = self.description.get_text()
         if self._add:
-            adsdata.libraries.add(name,description,self.button1.get_active())
+            adsData.libraries.add(name,description,self.button1.get_active())
         else:
-            adsdata.libraries.edit(self._name, name,description,self.button1.get_active())
+            adsData.libraries.edit(self._name, name,description,self.button1.get_active())
 
         if self._callback is not None:
             self._callback(name)

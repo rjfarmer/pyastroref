@@ -8,35 +8,9 @@ from pathlib import Path
 
 import bibtexparser
 from bibtexparser.bparser import BibTexParser
-import feedparser
-from appdirs import AppDirs
 
-dirs = AppDirs("pyAstroRef")
+from . import utils
 
-os.makedirs(dirs.user_config_dir,exist_ok=True)
-
-
-# Where to store ADS dev key, leave in ~/.ads to keep consistency with the ads package
-_TOKEN_FILE = os.path.join(Path.home(),'.ads','dev_key')
-
-# Where to store users ORCID key
-_ORCID_FILE = os.path.join(dirs.user_config_dir,'orcid')
-
-# Where to store PDF's
-_PDFFOLDER_FILE = os.path.join(dirs.user_config_dir,'pdfs')
-
-_base_url = 'https://api.adsabs.harvard.edu/v1/biblib'
-_urls = {
-    'base' :  _base_url,
-    'libraries' : _base_url+'/libraries',
-    'documents' :_base_url+'/documents',
-    'permissions' :_base_url+'/permissionss',
-    'transfer' :_base_url+'/transfer',
-    'search': 'https://api.adsabs.harvard.edu/v1/search/query',
-    'pdfs': 'https://ui.adsabs.harvard.edu/link_gateway/',
-    'metrics': 'https://api.adsabs.harvard.edu/v1/metrics',
-    'bibtex' : 'https://api.adsabs.harvard.edu/v1/export/bibtex'
-}
 
 # Default ADS search fields
 _fields = ['bibcode','title','author','year','abstract','year',
@@ -62,347 +36,6 @@ search_words = '''abs abstract ack aff aff_id alternate_bibcode alternative_titl
                 '''.split()
 
 
-# How many queries left today
-_max_limit = 5000
-_limit = 5000
-
-
-# Handles setting the ADS dev token during a request call
-# Use as requests.get(url,auth=_BearerAuth(ADS_TOKEN)
-class _BearerAuth(requests.auth.AuthBase):
-    def __init__(self, token):
-        self.token = token
-    def __call__(self, r):
-        r.headers["authorization"] = "Bearer " + str(self.token)
-        return r
-
-
-class adsabs(object):
-    def __init__(self):
-        self._token = None
-        self._orcid = None
-        self._libs = None
-        self._pdffolder = None 
-        self.search_source = None
-
-    @property
-    def token(self):
-        if self._token is None:
-            try:
-                with open(_TOKEN_FILE,'r') as f:
-                    self._token = f.readline().strip() 
-            except FileNotFoundError:
-                return None
-        return self._token
-
-    @token.setter
-    def token(self, token):
-        self._token = token
-        os.makedirs(os.path.basename(_TOKEN_FILE),exist_ok=True)
-        with open(_TOKEN_FILE,'w') as f:
-            print(self._token,file=f)
-        
-
-    @property
-    def orcid(self):
-        if self._orcid is None:
-            try:
-                with open(_ORCID_FILE,'r') as f:
-                    self._orcid = f.readline().strip() 
-            except FileNotFoundError:
-                return None
-        return self._orcid
-
-    @orcid.setter
-    def orcid(self, orcid):
-        self._orcid = orcid
-        os.makedirs(os.path.basename(_ORCID_FILE),exist_ok=True)
-        with open(_ORCID_FILE,'w') as f:
-            print(self._orcid,file=f)
-
-    @property
-    def pdffolder(self):
-        if self._pdffolder is None:
-            try:
-                with open(_PDFFOLDER_FILE,'r') as f:
-                    self._pdffolder = f.readline().strip() 
-            except FileNotFoundError:
-                return None
-        return self._pdffolder
-
-    @pdffolder.setter
-    def pdffolder(self, pdffolder):
-        self._pdffolder = pdffolder
-        os.makedirs(os.path.basename(_PDFFOLDER_FILE),exist_ok=True)
-        with open(_PDFFOLDER_FILE,'w') as f:
-            print(self._pdffolder,file=f)
-
-    def __getattr__(self, key):
-        if key == 'libraries':
-            if self._libs is None:
-                self._libs  = libraries(self.token)
-            return self._libs
-
-
-    def article(self, bibcode):
-        '''
-        Returns an article given its bibcode
-        '''
-        return article(self.token,bibcode=bibcode)
-
-    def search(self, query):
-        '''
-        Handles generic searching either via ads, bibtex, or passing a url
-
-        Returns a jounral (list of articles)
-        '''
-        s = search(self.token)
-        return s.search(query)
-
-
-class libraries(object):
-    '''
-    This is a collection of ADS libraries that supports iteration
-    '''
-    def __init__(self, token):
-        self.token = token
-        self.data = None
-        self._n = 0
-        
-    def update(self):
-        data = requests.get(_urls['libraries'],
-                            auth=_BearerAuth(self.token)
-                            ).json()['libraries']
-        # Repack data from list of dicts to dict of dicts
-        self.data = {}
-        for value in data:
-            self.data[value['name']] = value
-
-    def names(self):
-        if self.data is None:
-            self.update()
-        x = list(self.keys())
-        x.sort()
-        return x
-
-    def __getitem__(self, key):
-        if self.data is None:
-            self.update()
-        if key in self.data.keys():
-            return library(self.token,self.data[key]['id'])
-
-    def __getattr__(self, key):
-        if self.data is None:
-            self.update()
-        if key in self.data.keys():
-            return library(self.token,self.data[key]['id'])
-
-    def get(self, name):
-        '''
-        Fetches library
-        '''
-        return library(self.token,self.data[name]['id'])
-
-    def add(self, name, description='', public=False):
-        '''
-        Adds new library
-        '''
-        data = {
-            'name':name,
-            'public':public,
-            'description':description
-            }
-        r = requests.post(_urls['libraries'],
-                auth=_BearerAuth(self.token),
-                headers={'Content-Type':'application/json'},
-                json = data).json()
-        if 'name' not in r:
-            raise ValueError(r['error'])
-        self.update()
-
-    
-    def remove(self, name):
-        '''
-        Deletes library
-        '''
-        if name not in self.data.keys():
-            raise KeyError('Library does not exit')
-
-        lid = self.data[name]['id']
-
-        requests.delete(_urls['documents']+'/'+lid,
-                auth=_BearerAuth(self.token)
-                )
-        self.data.pop(name,None)
-
-
-    def edit(self,name, name_new=None,description=None,public=False):
-        '''
-        Edit metadata of a given library
-        '''
-        if name not in self.data.keys():
-            raise KeyError('Library does not exit')
-
-        lid = self.data[name]['id']
-
-        if name_new is not None:
-            if len(name):
-                name = name_new
-        
-        data = {
-            'name':name,
-            'public':public,
-            'description':description
-            }
-        requests.put(_urls['documents']+'/'+lid,
-                auth=_BearerAuth(self.token),
-                headers={'Content-Type':'application/json'},
-                json = data
-                )
-
-
-    def keys(self):
-        if self.data is None:
-            self.update()
-        return self.data.keys()
-
-    def __len__(self):
-        if self.data is not None:
-            return len(self.data)
-        else:
-            return 0
-
-    def __contains__(self, key):
-        if self.data is not None:
-            return key in self.data
-        else:
-            return False
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        if self.data is None:
-            self.update()
-
-        if self._n >= len(self.data):
-            raise StopIteration
-
-        res = self.get(self.keys()[self._n])
-        self._n +=1
-        return res
-
-    def reset(self):
-        self._n = 0
-
-    def __dir__(self):
-        return ['reset','add','get','names','removes','update'] + list(self.keys())
-
-class library(object):
-    '''
-    An instance of a single ADS library
-    '''
-    def __init__(self, token, libraryid):
-        self.token = token
-        self.libraryid = libraryid
-        self.update()
-        self._n = 0
-
-    def url(self):
-        return _urls['libraries'] + '/' + self.libraryid 
-
-    def url_docs(self):
-        return _urls['documents'] + '/' + self.libraryid 
-
-    def update(self):
-        self.docs = []
-
-        data = requests.get(self.url(),
-                        auth=_BearerAuth(self.token)
-                        ).json()
-        self.docs.extend(data['documents'])
-
-        total_num = int(data['metadata']['num_documents'])
-        if len(self.docs) < total_num:
-            num_left = total_num - len(self.docs)
-            data = requests.get(self.url()+'?start='+str(len(self.docs))+'&rows='+str(num_left),
-                            auth=_BearerAuth(self.token)
-                            ).json()
-            self.docs.extend(data['documents'])
-
-        self.metadata = data['metadata']
-        self.name = self.metadata['name']
-
-    def keys(self):
-        return self.docs
-
-    @property
-    def description(self):
-        return self.metadata['description']
-
-    def __getitem__(self,key):
-        if key in self.docs:
-            return article(self.token,key)
-
-    def __getattr__(self, key):
-        if key in self.metadata.keys():
-            return self.metadata[key]
-
-    def __dir__(self):
-        return self.metadata.keys() + ['keys','add','remove','get','update']
-
-    def get(self, bibcode):
-        return article(self.token,bibcode=bibcode)
-
-    def add(self, bibcode):
-        '''
-        Add bibcode to library
-        '''
-        data = {'bibcode':self._ensure_list(bibcode),"action":"add"}
-        r = requests.post(self.url_docs(),
-                auth=_BearerAuth(self.token),
-                headers={'Content-Type':'application/json'},
-                json = data).json()
-        # Error check:
-        if 'number_added' not in r:
-            raise ValueError(r['message'])
-
-    def remove(self, bibcode):
-        '''
-        Remove bibcode from library
-        '''
-        data = {'bibcode':self._ensure_list(bibcode),"action":"remove"}
-        r = requests.post(self.url_docs(),
-                auth=_BearerAuth(self.token),
-                headers={'Content-Type':'application/json'},
-                json = data).json()
-        # Error check:
-        if 'number_removed' not in r:
-            raise ValueError(r['message'])
-
-    def __len__(self):
-        return len(self.docs)
-
-    def __contains__(self, key):
-        return key in self.docs
-
-    def __iter__(self):
-        return self
-
-    def __next__(self):
-        if self._n >= len(self.docs):
-            raise StopIteration
-
-        res = self.get(self.keys()[self._n])
-        self._n +=1
-        return res
-
-    def reset(self):
-        self._n = 0
-
-    # Just makes sure we have a list of strings
-    def _ensure_list(self, s):
-        return s if isinstance(s, list) else list(s)
 
 class journal(object):
     '''
@@ -524,7 +157,8 @@ class article(object):
 
     def filename(self, full=False):
         if full:
-            return os.path.join(adsabs().pdffolder,self.bibcode+'.pdf')
+            return os.path.join(utils.read_key_file(utils.settings['PDFFOLDER_FILE']),
+                                self.bibcode+'.pdf')
         else:
             return self.bibcode+'.pdf'
 
@@ -607,7 +241,7 @@ class article(object):
             return
 
         for i in strs:
-            url = _urls['pdfs']+str(self.bibcode)+i
+            url = utils.urls['pdfs']+str(self.bibcode)+i
 
             # Pretend to be Firefox otherwise we hit captchas
             headers = {'user-agent': 'Mozilla /5.0 (Windows NT 10.0; Win64; x64)'}
@@ -639,8 +273,8 @@ class article(object):
 
     def bibtex(self,filename=None,text=True):
         data = {'bibcode':[self.bibcode]}
-        r = requests.post(_urls['bibtex'],
-                auth=_BearerAuth(self.token),
+        r = requests.post(utils.urls['bibtex'],
+                auth=utils.BearerAuth(self.token),
                 headers={'Content-Type':'application/json'},
                 json = data).json()
 
@@ -662,7 +296,7 @@ class article(object):
 
     def __reduce__(self):
         return (article, (self.token,self.bibcode))
-    
+
 
 class search(object):
     def __init__(self, token):
@@ -735,13 +369,14 @@ class search(object):
         return bibcodes, results
 
     def _query_ads(self, query, start=0):
-        r = requests.get(_urls['search'],
-                            auth=_BearerAuth(self.token),
-                            params={
-                                'q':query,
-                                'fl':_fields,
-                                'rows':100,
-                                'start':start
+        r = requests.get(
+                        utils.urls['search'],
+                        auth=utils.BearerAuth(self.token),
+                        params={
+                            'q':query,
+                            'fl':_fields,
+                            'rows':100,
+                            'start':start
                             }
                         )
         # Get rate limits
@@ -869,123 +504,3 @@ class search(object):
             res.append(joiner.join(x))
 
         return res
-
-
-
-class arxivrss(object):
-    def __init__(self, token):
-        self.url = 'http://export.arxiv.org/rss/astro-ph'
-        self._feed = None
-        self.token = token
-        self._data = []
-
-    def articles(self):
-        if self._feed is None:
-            self._feed = feedparser.parse(self.url)
-            arxiv_ids = [i['id'].split('/')[-1] for i in self._feed['entries']]
-
-            # Filter resubmissions out
-            today=datetime.date.today()
-            thismonth = str(today.year-2000)+str(today.month).zfill(2)
-            arxiv_ids = [i for i in arxiv_ids if i.startswith(thismonth)]
-
-            self._data = search(self.token).arxiv_multi(arxiv_ids)
-
-        return self._data
-
-
-class JournalData(object):
-    _url = 'http://adsabs.harvard.edu/abs_doc/journals1.html'
-
-    default_journals = {
-        'Astronomy and Astrophysics':'A&A',
-        'The Astrophysical Journal':'ApJ',
-        'The Astrophysical Journal Supplement Series':'ApJS',
-        'Monthly Notices of the Royal Astronomical Society':'MNRAS',
-        'Nature':'Natur',
-        'Nature Astronomy':'NatAs',
-        'Science':'Sci'
-    }
-
-    _file = Path(os.path.join(dirs.user_config_dir,'all_journals'))
-
-    def __init__(self, token):
-        self.token = token
-        self.all_journals = {}
-        self._results = {}
-        self.update_journals()
-
-    def if_update_journal(self):
-        if not os.path.exists(self._file):
-            return True
-
-        last_week = datetime.date.today() - datetime.timedelta(days=7)
-        last_modified = datetime.date.fromtimestamp(self._file.stat().st_mtime)
-        if last_modified < last_week:
-            return True
-
-        return False
-
-    def update_journals(self):
-        if self.if_update_journal():
-            self.make_file()
-
-        self.read_file()
-
-
-    def make_file(self):
-        r = requests.get(self._url)
-        data = r.content.decode().split('\n')
-        
-        res = {}
-        for line in data:
-            if line.startswith('<a href="#" onClick='):
-                _, journ_short, name = line.split('>')
-                journ_short = journ_short.split()[0].strip()
-                name = name.strip()
-                res[name] = journ_short
-
-        with open(self._file,'w') as f:
-            for key,value in res.items():
-                print(key,value,file=f)
-
-    def read_file(self):
-        self.all_journals = {}
-        with open(self._file,'r') as f:
-            for line in f.readlines():
-                l = line.split()
-                value = l[-1]
-                key = ' '.join(l[:-1])
-                self.all_journals[key.strip()] = value.strip()
-
-        # Remove default journals
-        for k in self.default_journals.keys():
-            self.all_journals.pop(k, None)
-
-    def list_defaults(self):
-        return self.default_journals.keys()
-
-    def list_all(self):
-        return self.all_journals.keys()
-
-    def search(self, name):
-        for key,value in self.default_journals.items():
-            if value == name:
-                break
-
-        if name not in self._results:
-            today = datetime.date.today()
-            monthago = today - datetime.timedelta(days=31)
-
-            pubdata = "pubdate:["
-            pubdata+= str(monthago.year) +"-"+ str(monthago.month).zfill(2)
-            pubdata+= ' TO '
-            pubdata+= str(today.year) +"-"+ str(today.month).zfill(2)
-            pubdata+=']'
-
-            query = 'bibstem:"'+name+'" AND '+pubdata
-
-            self._results[name] = search(self.token).search(query)
-
-        self._results[name].reset()
-        return self._results[name]
