@@ -16,7 +16,7 @@ class OptionsMenu(Gtk.Window):
     def __init__(self):
         Gtk.Window.__init__(self, title="Options")
         self.set_position(Gtk.WindowPosition.CENTER)
-
+        self.pdffolder = adsData.pdffolder
         grid = Gtk.Grid()
         self.add(grid)
 
@@ -34,46 +34,37 @@ class OptionsMenu(Gtk.Window):
         label = "Choose Folder"
         if adsData.pdffolder is not None:
             label = adsData.pdffolder
+            print(adsData.pdffolder)
 
         self.folder_entry = Gtk.Button(label=label)
         self.folder_entry.connect("clicked", self.on_file_clicked)
 
-        ads_label = Gtk.Label()
-
-        ads_label.set_markup("<a href=\"https://ui.adsabs.harvard.edu/user/settings/token\">"
-                            "ADSABS ID</a>")
-        
-        
-        orcid_label = Gtk.Label()
-        orcid_label.set_markup("<a href=\"https://orcid.org/\">"
-                            "ORCID</a>")
+        ads_label = Gtk.LinkButton(uri='https://ui.adsabs.harvard.edu/user/settings/token',label='ADSABS ID')
+        orcid_label = Gtk.LinkButton(uri='https://orcid.org',label='ORCID')
 
         file_label = Gtk.Label(label='Save folder')
 
-        save_button_ads = Gtk.Button(label="Save")
-        save_button_ads.connect("clicked", self.save_ads)
+        save_button = Gtk.Button(label="Save")
+        save_button.connect("clicked", self.save)
 
-        save_button_orcid = Gtk.Button(label="Save")
-        save_button_orcid.connect("clicked", self.save_orcid)
 
         grid.add(ads_label)
         grid.attach_next_to(self.ads_entry,ads_label,
                             Gtk.PositionType.RIGHT,1,1)
-        grid.attach_next_to(save_button_ads,self.ads_entry,
-                            Gtk.PositionType.RIGHT,1,1)     
-
-
+     
         grid.attach_next_to(orcid_label,ads_label,
                             Gtk.PositionType.BOTTOM,1,1)
         grid.attach_next_to(self.orcid_entry,orcid_label,
                             Gtk.PositionType.RIGHT,1,1)
-        grid.attach_next_to(save_button_orcid,self.orcid_entry,
-                            Gtk.PositionType.RIGHT,1,1)  
 
         grid.attach_next_to(file_label,orcid_label,
                             Gtk.PositionType.BOTTOM,1,1)
         grid.attach_next_to(self.folder_entry,file_label,
-                            Gtk.PositionType.RIGHT,1,1)        
+                            Gtk.PositionType.RIGHT,1,1)   
+
+        grid.attach_next_to(save_button,file_label,
+                            Gtk.PositionType.BOTTOM,2,1)  
+
         self.show_all()   
 
     def save_ads(self, button):
@@ -84,8 +75,10 @@ class OptionsMenu(Gtk.Window):
 
     def on_file_clicked(self, widget):
         dialog = Gtk.FileChooserDialog(
-            title="Please choose a folder", parent=self, action=Gtk.FileChooserAction.SELECT_FOLDER
-        )
+            title="Please choose a folder",
+            action=Gtk.FileChooserAction.SELECT_FOLDER
+            )
+
         dialog.add_buttons(
             Gtk.STOCK_CANCEL,
             Gtk.ResponseType.CANCEL,
@@ -97,6 +90,12 @@ class OptionsMenu(Gtk.Window):
         if response == Gtk.ResponseType.OK:
             f = dialog.get_filename()
             widget.set_label(f)
-            adsData.pdffolder = f
+            self.pdffolder = f
             
         dialog.destroy()
+
+    def save(self, widegt):
+        adsData.token = self.ads_entry.get_text()
+        adsData.orcid = self.orcid_entry.get_text()
+        adsData.pdffolder = self.pdffolder
+        self.destroy()
