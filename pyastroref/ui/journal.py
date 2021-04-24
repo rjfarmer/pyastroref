@@ -11,6 +11,7 @@ from gi.repository import GLib, Gtk, GObject, Gdk
 from . import utils, libraries, pdf, saved_search
 
 from ..papers import adsabs as ads
+from ..papers import articles
 
 adsData = ads.adsabs()
 adsSearch = ads.articles.search(adsData.token)
@@ -43,7 +44,7 @@ class ShowJournal(object):
 
         self.download()
 
-        self.page.show_all()
+        self.page.show_all() 
         self.notebook.show_all()
         self.header.show_all()
 
@@ -52,7 +53,11 @@ class ShowJournal(object):
         def threader():
             self.journal = []
             GLib.idle_add(self.store.clear)
-            self.journal = self.target()
+            try:
+                self.journal = self.target()
+            except articles.SearchError:
+                GLib.idle_add(utils.ads_error_window)
+
             GLib.idle_add(self.make_liststore)
             GLib.idle_add(self.header.spin_off)
             self.header.data = self.journal

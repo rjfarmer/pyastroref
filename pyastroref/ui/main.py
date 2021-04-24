@@ -8,10 +8,11 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk, GObject, Gdk
 
-from . import options, journal, leftpanel
+from . import options, journal, leftpanel, utils
 
 
 from ..papers import adsabs as ads
+from ..papers import articles
 
 adsData = ads.adsabs()
 adsSearch = ads.articles.search(adsData.token)
@@ -34,7 +35,6 @@ class MainWindow(Gtk.Window):
 
         if adsData.token is None:
             options.OptionsMenu()
-
 
     def setup_headerbar(self):
         self.options_menu()

@@ -18,46 +18,37 @@ _limit = 5000
 
 class adsabs(object):
     def __init__(self):
-        self._token = None
-        self._orcid = None
         self._libs = None
-        self._pdffolder = None 
         self.search_source = None
         self.settings = utils.settings
 
+    def reload(self):
+        self._libs = None
+        self.search_source = None
+
     @property
     def token(self):
-        if self._token is None:
-            self._token = utils.read_key_file(self.settings['TOKEN_FILE'])
-        return self._token
+        return utils.read_key_file(self.settings['TOKEN_FILE'])
 
     @token.setter
     def token(self, token):
-        self._token = token
-        utils.save_key_file(self.settings['TOKEN_FILE'],self._token)
+        utils.save_key_file(self.settings['TOKEN_FILE'],token)
         
-
     @property
     def orcid(self):
-        if self._orcid is None:
-            self._orcid = utils.read_key_file(self.settings['ORCID_FILE'])
-        return self._orcid
+        return utils.read_key_file(self.settings['ORCID_FILE'])
 
     @orcid.setter
     def orcid(self, orcid):
-        self._orcid = orcid
-        utils.save_key_file(self.settings['ORCID_FILE'],self._orcid)
+        utils.save_key_file(self.settings['ORCID_FILE'],orcid)
 
     @property
     def pdffolder(self):
-        if self._pdffolder is None:
-            self._pdffolder = utils.read_key_file(self.settings['PDFFOLDER_FILE'])
-        return self._pdffolder
+        return utils.read_key_file(self.settings['PDFFOLDER_FILE'])
 
     @pdffolder.setter
     def pdffolder(self, pdffolder):
-        self._pdffolder = pdffolder
-        utils.save_key_file(self.settings['PDFFOLDER_FILE'],self._pdffolder)
+        utils.save_key_file(self.settings['PDFFOLDER_FILE'],pdffolder)
 
     def __getattr__(self, key):
         if key == 'libraries':

@@ -355,6 +355,10 @@ class search(object):
 
             # Did we get everything?
             data = r.json()
+
+            if 'response' not in data:
+                raise SearchError()
+
             results.extend(data['response']['docs'])
             num_found = int(data['response']['numFound'])
             num_got = len(results)
@@ -504,3 +508,7 @@ class search(object):
             res.append(joiner.join(x))
 
         return res
+
+
+class SearchError(Exception):
+    pass

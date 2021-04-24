@@ -24,7 +24,11 @@ class libraries(object):
                                 auth=utils.BearerAuth(self.token)
                             ).json()
 
-        data = data['libraries']
+        self.data = {}
+        if 'libraries' in data:
+            data = data['libraries']
+        else:
+            return
 
         # Repack data from list of dicts to dict of dicts
         self.data = {}

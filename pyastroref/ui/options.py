@@ -34,7 +34,6 @@ class OptionsMenu(Gtk.Window):
         label = "Choose Folder"
         if adsData.pdffolder is not None:
             label = adsData.pdffolder
-            print(adsData.pdffolder)
 
         self.folder_entry = Gtk.Button(label=label)
         self.folder_entry.connect("clicked", self.on_file_clicked)
@@ -76,6 +75,7 @@ class OptionsMenu(Gtk.Window):
     def on_file_clicked(self, widget):
         dialog = Gtk.FileChooserDialog(
             title="Please choose a folder",
+            transient_for=self,
             action=Gtk.FileChooserAction.SELECT_FOLDER
             )
 
@@ -98,4 +98,5 @@ class OptionsMenu(Gtk.Window):
         adsData.token = self.ads_entry.get_text()
         adsData.orcid = self.orcid_entry.get_text()
         adsData.pdffolder = self.pdffolder
+        adsData.reload()
         self.destroy()
