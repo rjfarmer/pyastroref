@@ -14,6 +14,8 @@ from ..papers import adsabs as ads
 from ..papers import collection
 from ..papers import arxiv
 
+from . import collections
+
 adsData = ads.adsabs()
 adsSearch = ads.articles.search(adsData.token)
 adsJournals = collection.Collection(adsData.token)
@@ -50,12 +52,13 @@ class LeftPanel(object):
                             'idx': idx
                             }
 
-        libs = adsData.libraries.names()
+        libs = sorted(adsData.libraries.names(),key=str.lower)
         for i in libs:
             self.store.append(self.rows['Libraries']['row'],[i])
 
-        for i in adsJournals.list_defaults():
-            self.store.append(self.rows['Journals']['row'],[adsJournals.default_journals[i]])
+        show_journals = sorted([adsJournals.default_journals[i] for i in adsJournals.list_defaults()],key=str.lower)
+        for i in show_journals:
+            self.store.append(self.rows['Journals']['row'],[i])
 
 
     def button_press_event(self, treeview, event):
@@ -228,7 +231,7 @@ class LeftPanelMenu(Gtk.Menu):
 
     def on_click_add(self, button):
         if self.name == 'Journals':
-            journal.JournalWindow(callback=self.refresh_callback)
+            collections.JournalWindow(callback=self.refresh_callback)
         else:
             libraries.EditLibrary(None,add=True, callback=self.refresh_callback)
 

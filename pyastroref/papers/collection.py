@@ -13,7 +13,7 @@ from . import articles
 class Collection(object):
     _url = 'http://adsabs.harvard.edu/abs_doc/journals1.html'
 
-    default_journals = {
+    _init_default_journals = {
         'Astronomy and Astrophysics':'A&A',
         'The Astrophysical Journal':'ApJ',
         'The Astrophysical Journal Supplement Series':'ApJS',
@@ -23,20 +23,36 @@ class Collection(object):
         'Science':'Sci'
     }
 
-    _file = Path(utils.settings['ALL_JOURNALS_LIST'])
+    default_journals = {}
+
+    _file_all = Path(utils.settings['ALL_JOURNALS_LIST'])
+    _file = Path(utils.settings['JOURNALS_LIST'])
 
     def __init__(self, token):
         self.token = token
         self.all_journals = {}
         self._results = {}
+
+        self.load_defaults()
+
         self.update_journals()
 
-    def if_update_journal(self):
+
+    def load_defaults(self):
         if not os.path.exists(self._file):
+            self.default_journals = self._init_default_journals
+            return
+
+        self.default_journals = self.read_file(self._file)
+
+
+
+    def if_update_journal(self):
+        if not os.path.exists(self._file_all):
             return True
 
         last_week = datetime.date.today() - datetime.timedelta(days=7)
-        last_modified = datetime.date.fromtimestamp(self._file.stat().st_mtime)
+        last_modified = datetime.date.fromtimestamp(self._file_all.stat().st_mtime)
         if last_modified < last_week:
             return True
 
@@ -46,7 +62,10 @@ class Collection(object):
         if self.if_update_journal():
             self.make_file()
 
-        self.read_file()
+        self.all_journals = self.read_file(self._file_all)
+        # Remove default journals
+        for k in self.default_journals.keys():
+            self.all_journals.pop(k, None)
 
 
     def make_file(self):
@@ -61,22 +80,25 @@ class Collection(object):
                 name = name.strip()
                 res[name] = journ_short
 
-        with open(self._file,'w') as f:
+        with open(self._file_all,'w') as f:
             for key,value in res.items():
                 print(key,value,file=f)
 
-    def read_file(self):
-        self.all_journals = {}
-        with open(self._file,'r') as f:
+    def read_file(self, filename):
+        all_journals = {}
+        with open(filename,'r') as f:
             for line in f.readlines():
                 l = line.split()
                 value = l[-1]
                 key = ' '.join(l[:-1])
-                self.all_journals[key.strip()] = value.strip()
+                all_journals[key.strip()] = value.strip()
+        return all_journals
 
-        # Remove default journals
-        for k in self.default_journals.keys():
-            self.all_journals.pop(k, None)
+
+    def save_defaults(self):
+        with open(self._file,'w') as f:
+            for key,value in self.default_journals.items():
+                print(key,value,file=f)
 
     def list_defaults(self):
         return self.default_journals.keys()

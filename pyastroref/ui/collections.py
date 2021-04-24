@@ -37,10 +37,6 @@ class JournalWindow(Gtk.Window):
 
         self.set_size_request(1200,400)
 
-        #self.filter = self.store.filter_new()
-        #self.filter.set_visible_func(self.filter_func, data=None)
-
-        #self.treeview = Gtk.TreeView(model=self.filter)
         self.treeview = Gtk.TreeView(model=self.store)
         renderer_text = Gtk.CellRendererText()
         column_text = Gtk.TreeViewColumn("Journal", renderer_text, text=0)
@@ -93,11 +89,8 @@ class JournalWindow(Gtk.Window):
 
 
     def make_rows(self,query=''):
-        def_journals = list(adsJournals.list_defaults())
-        all_journals = list(adsJournals.list_all())
-
-        def_journals.sort()
-        all_journals.sort()
+        def_journals = sorted(adsJournals.list_defaults(), key=str.lower)
+        all_journals = sorted(adsJournals.list_all(), key=str.lower)
 
         for i in def_journals:
             if i.lower().startswith(query):
@@ -110,4 +103,6 @@ class JournalWindow(Gtk.Window):
     def on_destroy(self, widget,*data):
         if self._callback is not None:
             self._callback('')
+
+        adsJournals.save_defaults()
         return False

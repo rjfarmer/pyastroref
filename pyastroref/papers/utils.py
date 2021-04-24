@@ -19,7 +19,9 @@ settings = {
     # Where to store PDF's
     'PDFFOLDER_FILE': os.path.join(dirs.user_config_dir,'pdfs'),
     # Where to store list of journals
-    'ALL_JOURNALS_LIST':os.path.join(dirs.user_config_dir,'all_journals')
+    'ALL_JOURNALS_LIST':os.path.join(dirs.user_config_dir,'all_journals'),
+    # Where to store list of to display
+    'JOURNALS_LIST':os.path.join(dirs.user_config_dir,'journals'),
 }
 
 
