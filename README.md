@@ -2,7 +2,7 @@
 # pyAstroRef
 
 
-The astronomer's reference manager.
+An astronomy focused reference manager with integration with adsabs and the arxiv.
 
 
 ## Installation
