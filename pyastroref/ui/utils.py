@@ -44,3 +44,21 @@ def orcid_error_window():
     dialog.run()
 
     dialog.destroy()
+
+
+def set_dm(mode=None):
+    if mode is None:
+        mode = utils.read_key_file(utils.settings['DARK_MODE_FILE'])
+        if mode == 'False':
+            mode = False
+        else:
+            mode = True
+
+    settings = Gtk.Settings.get_default()
+    settings.set_property("gtk-application-prefer-dark-theme",mode)
+    utils.save_key_file(utils.settings['DARK_MODE_FILE'], mode)
+
+def get_dm():
+    settings = Gtk.Settings.get_default()
+    print(settings.get_property("gtk-application-prefer-dark-theme"))
+    return settings.get_property("gtk-application-prefer-dark-theme")

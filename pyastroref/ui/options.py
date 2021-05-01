@@ -10,6 +10,8 @@ from gi.repository import GLib, Gtk, GObject, Gdk
 
 from ..papers import adsabs as ads
 
+from . import utils
+
 adsData = ads.adsabs()
 
 class OptionsMenu(Gtk.Window):
@@ -17,6 +19,7 @@ class OptionsMenu(Gtk.Window):
         Gtk.Window.__init__(self, title="Options")
         self.set_position(Gtk.WindowPosition.CENTER)
         self.pdffolder = adsData.pdffolder
+
         grid = Gtk.Grid()
         self.add(grid)
 
@@ -46,6 +49,11 @@ class OptionsMenu(Gtk.Window):
         save_button = Gtk.Button(label="Save")
         save_button.connect("clicked", self.save)
 
+        dm_label = Gtk.Label(label='Dark mode')
+        self.dm_button = Gtk.Switch()
+        self.dm_button.connect("notify::active", self.on_switch_activated)
+        self.dm_button.set_active(utils.get_dm())
+        self.dm_button.set_halign(Gtk.Align.CENTER)
 
         grid.add(ads_label)
         grid.attach_next_to(self.ads_entry,ads_label,
@@ -61,7 +69,13 @@ class OptionsMenu(Gtk.Window):
         grid.attach_next_to(self.folder_entry,file_label,
                             Gtk.PositionType.RIGHT,1,1)   
 
-        grid.attach_next_to(save_button,file_label,
+        grid.attach_next_to(dm_label,file_label,
+                            Gtk.PositionType.BOTTOM,1,1)
+        grid.attach_next_to(self.dm_button,dm_label,
+                            Gtk.PositionType.RIGHT,1,1)   
+
+
+        grid.attach_next_to(save_button,dm_label,
                             Gtk.PositionType.BOTTOM,2,1)  
 
         self.show_all()   
@@ -99,4 +113,8 @@ class OptionsMenu(Gtk.Window):
         adsData.orcid = self.orcid_entry.get_text()
         adsData.pdffolder = self.pdffolder
         adsData.reload()
+        utils.set_dm(self.dm_button.get_active())
         self.destroy()
+
+    def on_switch_activated(self, switch, gparam):
+        pass

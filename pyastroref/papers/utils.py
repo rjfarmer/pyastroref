@@ -22,6 +22,8 @@ settings = {
     'ALL_JOURNALS_LIST':os.path.join(dirs.user_config_dir,'all_journals'),
     # Where to store list of to display
     'JOURNALS_LIST':os.path.join(dirs.user_config_dir,'journals'),
+    # Dark mode?
+    'DARK_MODE_FILE':os.path.join(dirs.user_config_dir,'dark_mode'),
 }
 
 

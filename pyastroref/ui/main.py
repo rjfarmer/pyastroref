@@ -26,6 +26,8 @@ class MainWindow(Gtk.Window):
 
         Gtk.Window.__init__(self, title="pyAstroRef")
 
+        utils.set_dm()
+
         self.connect("destroy", Gtk.main_quit)
         self.set_hide_titlebar_when_maximized(False)
         self.set_position(Gtk.WindowPosition.CENTER)
