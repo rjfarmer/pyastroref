@@ -120,9 +120,16 @@ class EditLibrary(Gtk.Window):
         name = self.name.get_text()
         description = self.description.get_text()
         if self._add:
-            adsData.libraries.add(name,description,self.button1.get_active())
+            def target():
+                adsData.libraries.add(name,description,self.button1.get_active())
         else:
-            adsData.libraries.edit(self._name, name,description,self.button1.get_active())
+            def target():
+                adsData.libraries.edit(self._name, name,description,self.button1.get_active())
+
+        thread = threading.Thread(target=target)
+        thread.daemon = True
+        thread.start()     
+
 
         if self._callback is not None:
             self._callback(name)
