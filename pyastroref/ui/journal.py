@@ -24,15 +24,19 @@ class ShowJournal(object):
 
         self.store = Gtk.ListStore(*[str]*len(self.cols))
         self.journal = []
-        self.make_liststore()
+        self.make_liststore(self.journal)
         self.make_treeview()
 
         # setting up the layout, putting the treeview in a scrollwindow
-        self.page = Gtk.ScrolledWindow()
+        self.page = Gtk.VBox()
+
+        self.scroll = Gtk.ScrolledWindow()
+        self.page.add(self.scroll)
+
         self.page.astroref_name = name
         self.page.set_vexpand(True)
         self.page.set_hexpand(True)
-        self.page.add(self.treeview)
+        self.scroll.add(self.treeview)
 
         self.header = JournalPopupWindow(self.notebook, self.page, name)
 
@@ -45,9 +49,9 @@ class ShowJournal(object):
         self.download()
 
         self.page.show_all() 
+        self.scroll.show_all()
         self.notebook.show_all()
         self.header.show_all()
-
 
     def download(self):
         def threader():
@@ -58,7 +62,7 @@ class ShowJournal(object):
             except articles.SearchError:
                 GLib.idle_add(utils.ads_error_window)
 
-            GLib.idle_add(self.make_liststore)
+            GLib.idle_add(self.make_liststore,self.journal)
             GLib.idle_add(self.header.spin_off)
             self.header.data = self.journal
 
@@ -66,9 +70,9 @@ class ShowJournal(object):
         thread.daemon = True
         thread.start()
 
-    def make_liststore(self):
+    def make_liststore(self,journal):
         # Creating the ListStore model
-        for paper in self.journal:
+        for paper in journal:
             pdficon = 'go-down'
             if os.path.exists(paper.filename(True)):
                 pdficon = 'x-office-document'
@@ -120,10 +124,12 @@ class ShowJournal(object):
         self.treeviewsorted.set_sort_func(6, self.int_compare, 6)
 
         self.treeview.get_column(2).clicked()
+        self.treeview.set_search_column(-1)
 
         #self.treeview.connect('row-activated' , self.button_press_event)
         self.treeview.connect('query-tooltip' , self.tooltip)
         self.treeview.connect('button-press-event' , self.button_press_event)
+        self.treeview.connect('start-interactive-search', self.searchbar)
 
     def int_compare(self, model, row1, row2, user_data):
         value1 = int(model.get_value(row1, user_data))

@@ -40,9 +40,8 @@ class LeftPanel(object):
         self.treeview.set_has_tooltip(True)
         self.treeview.connect('query-tooltip' , self.tooltip)
 
-        #self.tree.get_selection().connect('changed' , self.row_selected)
         self.treeview.connect('button-press-event' , self.button_press_event)
-
+        self.treeview.set_search_column(-1)
 
     def make_rows(self):
         self.rows = {}
@@ -90,7 +89,7 @@ class LeftPanel(object):
                 target = arxiv.arxivrss(adsData.token).articles
             elif row == self.rows['ORCID']['idx']:
                 if adsData.orcid is None:
-                    pass #TODO Add warning popup
+                    utils.orcid_error_window()
                     return
                 def func():
                     return adsSearch.orcid(adsData.orcid)
