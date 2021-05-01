@@ -83,27 +83,47 @@ class EditLibrary(Gtk.Window):
 
 
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.add(vbox)
 
+        listbox = Gtk.ListBox()
+        listbox.set_selection_mode(Gtk.SelectionMode.NONE)
+        vbox.pack_start(listbox, True, True, 0)
+
+        row = Gtk.ListBoxRow()
+        hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=50)
+        row.add(hbox)
+
+        label = Gtk.Label(label="Name")
         self.name = Gtk.Entry()
-        self.name.set_placeholder_text('Name')
         if self._name is not None:
             self.name.set_text(self._name)
-        vbox.pack_start(self.name, True, True, 0)
+        hbox.pack_start(label, True, True, 0)
+        hbox.pack_start(self.name, True, True, 0)
+        listbox.add(row)
+
+        row = Gtk.ListBoxRow()
+        hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=50)
+        row.add(hbox)
+        label = Gtk.Label(label="Description")
 
         self.description = Gtk.Entry()
-        self.description.set_placeholder_text('Description')
         self.description.set_text(self._description)
-        vbox.pack_start(self.description, True, True, 0)
+        hbox.pack_start(label, True, True, 0)
+        hbox.pack_start(self.description, True, True, 0)
+        listbox.add(row)
 
+        row = Gtk.ListBoxRow()
+        hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=50)
+        row.add(hbox)
+        label = Gtk.Label(label="Visibility")
 
-        hbox = Gtk.Box(spacing=6)
-        vbox.add(hbox)
         self.button1 = Gtk.RadioButton.new_with_label_from_widget(None, "Public")
         self.button2 = Gtk.RadioButton.new_from_widget(self.button1)
         self.button2.set_label("Private")
 
         #button1.connect("toggled", self.on_button_toggled, "public")
         #button2.connect("toggled", self.on_button_toggled, "private")
+        hbox.pack_start(label, False, False, 0)
         hbox.pack_start(self.button1, False, False, 0)
         hbox.pack_start(self.button2, False, False, 0)
 
@@ -111,14 +131,19 @@ class EditLibrary(Gtk.Window):
             self.button1.set_active(True)
         else:
             self.button2.set_active(True)
+        
+        listbox.add(row)
 
+        row = Gtk.ListBoxRow()
+        hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=50)
+        row.add(hbox)
 
         save = Gtk.Button(label='Save')
         save.connect('clicked', self.on_save)
 
-        vbox.pack_start(save, True,True,0)
+        hbox.pack_start(save, True,True,0)
+        listbox.add(row)
 
-        self.add(vbox)
         self.show_all()
 
     def on_save(self, button):
