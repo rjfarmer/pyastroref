@@ -26,6 +26,10 @@ class MainWindow(Gtk.Window):
 
         Gtk.Window.__init__(self, title="pyAstroRef")
 
+        self.connect("destroy", Gtk.main_quit)
+        self.set_hide_titlebar_when_maximized(False)
+        self.set_position(Gtk.WindowPosition.CENTER)
+        self.maximize()
 
         self.setup_search_bar()
         self.setup_headerbar()
@@ -35,6 +39,9 @@ class MainWindow(Gtk.Window):
 
         if adsData.token is None:
             options.OptionsMenu()
+
+        self.show_all()
+
 
     def setup_headerbar(self):
         self.options_menu()
