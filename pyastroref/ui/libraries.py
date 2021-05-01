@@ -47,8 +47,13 @@ class Add2Lib(Gtk.Window):
     def on_save(self, button):
         lib = self.combo.get_active_text()
         if lib is not None and len(self.bibcodes):
-            print('Saving to ',lib)
-            adsData.libraries[lib].add(self.bibcodes)
+            def target():
+                adsData.libraries[lib].add(self.bibcodes)
+
+            thread = threading.Thread(target=target)
+            thread.daemon = True
+            thread.start()  
+
         self.destroy()
 
 class EditLibrary(Gtk.Window):
