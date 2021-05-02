@@ -71,6 +71,10 @@ class ShowJournal(Gtk.VBox):
         thread.start()
 
     def make_liststore(self,journal):
+        if hasattr(journal,'reset'):
+            journal.reset()
+
+        self.store.clear()
         # Creating the ListStore model
         for paper in journal:
             pdficon = 'go-down'
@@ -208,6 +212,26 @@ class ShowJournal(Gtk.VBox):
 
         return False
 
+    def refresh_results(self, widget):
+        query = widget.get_text().lower()
+        journal = []
+        if len(self.journal) == 0:
+            return
+        self.journal.reset()
+        for paper in self.journal:
+            if query in paper.title.lower():
+                journal.append(paper)
+            elif query in paper.abstract.lower():
+                journal.append(paper)
+            elif query in paper.authors.lower():
+                journal.append(paper)
+            elif query in paper.year:
+                journal.append(paper)
+
+        self.make_liststore(journal)
+
+
+
 
 class SearchBar(Gtk.HBox):
     def __init__(self, parent):
@@ -217,10 +241,12 @@ class SearchBar(Gtk.HBox):
 
         self.sb = Gtk.SearchEntry()
         self.pack_start(self.sb,True,True,0)
+        
+        self.sb.connect("changed", self.parent.refresh_results)    
+        self.sb.grab_focus_without_selecting()
+
 
         buttons = [
-            ['go-up',self.on_next],
-            ['go-down',self.on_prev],
             ['window-close-symbolic',self.on_close]
         ]
 
@@ -233,15 +259,14 @@ class SearchBar(Gtk.HBox):
             self.bs[-1].connect('clicked',i[1])
             self.pack_start(self.bs[-1],False,False,10)
 
-    def on_next(self, button):
-        pass
+        self.show_all()
 
-    def on_prev(self, button):
-        pass
 
     def on_close(self, button):
         self.parent.remove(self)
         self.parent.has_search_open = False
+        self.parent.make_liststore(self.parent.journal)
+
 
 
 

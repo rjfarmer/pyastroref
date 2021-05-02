@@ -172,7 +172,10 @@ class article(object):
     def abstract(self):
         if self._data is None:
             self.search()
-        return self._data['abstract']
+        if 'abstract' in self._data:
+            return self._data['abstract']
+        else:
+            return ''
 
     @property
     def name(self):
