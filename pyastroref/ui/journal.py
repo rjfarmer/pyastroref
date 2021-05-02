@@ -240,7 +240,7 @@ class SearchBar(Gtk.HBox):
         self.parent = parent
 
         self.sb = Gtk.SearchEntry()
-        self.pack_start(self.sb,True,True,0)
+        self.pack_start(self.sb,True,True,150)
         
         self.sb.connect("changed", self.parent.refresh_results)    
         self.sb.grab_focus_without_selecting()

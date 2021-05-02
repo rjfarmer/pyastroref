@@ -116,7 +116,7 @@ class SearchBar(Gtk.HBox):
         self.parent = parent
 
         self.sb = Gtk.SearchEntry()
-        self.pack_start(self.sb,True,True,0)
+        self.pack_start(self.sb,True,True,150)
 
         buttons = [
             ['go-up',self.on_next],
