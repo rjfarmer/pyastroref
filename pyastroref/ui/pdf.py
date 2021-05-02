@@ -19,15 +19,21 @@ from . import libraries
 EvinceDocument.init()
 
 
-class ShowPDF(object):
+class ShowPDF(Gtk.VBox):
     def __init__(self, data, notebook):
+        Gtk.VBox.__init__(self)
+
+        self.has_search_open = False
+
+        self.sb = Gtk.ScrolledWindow()
+        self.add(self.sb)
+
         self.data = data
         self.notebook = notebook
 
-        self.page = Gtk.ScrolledWindow()
-        self.page.astroref_name = self.data.bibcode
+        self.astroref_name = self.data.bibcode
 
-        self.header = PDFPopupWindow(self.notebook, self.page, self.data)
+        self.header = PDFPopupWindow(self.notebook, self, self.data)
 
         self._filename = self.data.filename(True)
 
@@ -47,7 +53,7 @@ class ShowPDF(object):
             self.show()
             
 
-    def add(self):
+    def add_page(self):
         for p in range(self.notebook.get_n_pages()):
             page = self.notebook.get_nth_page(p)
             if self.data.bibcode == page.astroref_name:
@@ -56,8 +62,8 @@ class ShowPDF(object):
                 return
 
 
-        self.page_num = self.notebook.append_page(self.page, self.header)
-        self.notebook.set_tab_reorderable(self.page, True)
+        self.page_num = self.notebook.append_page(self, self.header)
+        self.notebook.set_tab_reorderable(self, True)
         self.notebook.show_all()
 
         try:
@@ -75,11 +81,69 @@ class ShowPDF(object):
         model = EvinceView.DocumentModel()
         model.set_document(doc)
         view.set_model(model)
-        self.page.add(view)
+        self.sb.add(view)
 
-        self.page.show_all()
+        self.sb.show_all()
+        self.show_all()
         self.notebook.show_all()
         GLib.idle_add(self.header.spin_off)
+
+    def searchbar(self, widget, event=None):
+        if event is None:
+            return False
+
+        keyval = event.keyval
+        keyval_name = Gdk.keyval_name(keyval)
+        state = event.state
+        ctrl = (state & Gdk.ModifierType.CONTROL_MASK)
+
+        if ctrl and keyval_name == 'f':
+            if not self.has_search_open:
+                sb = SearchBar(self)     
+                self.pack_start(sb,False,False,0)
+                self.reorder_child(sb,0)
+                sb.show_all()
+                self.has_search_open = True
+                return True
+
+        return False
+
+
+class SearchBar(Gtk.HBox):
+    def __init__(self, parent):
+        Gtk.HBox.__init__(self)
+
+        self.parent = parent
+
+        self.sb = Gtk.SearchEntry()
+        self.pack_start(self.sb,True,True,0)
+
+        buttons = [
+            ['go-up',self.on_next],
+            ['go-down',self.on_prev],
+            ['window-close-symbolic',self.on_close]
+        ]
+
+        self.bs = []
+        for i in buttons:
+            self.bs.append(Gtk.Button())
+            image = Gtk.Image()
+            image.set_from_icon_name(i[0], Gtk.IconSize.BUTTON)
+            self.bs[-1].set_image(image)
+            self.bs[-1].connect('clicked',i[1])
+            self.pack_start(self.bs[-1],False,False,10)
+
+    def on_next(self, button):
+        pass
+
+    def on_prev(self, button):
+        pass
+
+    def on_close(self, button):
+        self.parent.remove(self)
+        self.parent.has_search_open = False
+
+
 
 class PDFPopupWindow(Gtk.EventBox):
     def __init__(self, notebook, page, data):

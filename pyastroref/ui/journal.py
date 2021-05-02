@@ -16,9 +16,12 @@ from ..papers import articles
 adsData = ads.adsabs()
 adsSearch = ads.articles.search(adsData.token)
 
-class ShowJournal(object):
+class ShowJournal(Gtk.VBox):
     cols = ["Title", "First Author", "Year", "Authors", "Journal","References", "Citations", "PDF", "Bibtex"]
     def __init__(self, target, notebook, name):
+        Gtk.VBox.__init__(self)
+        self.has_search_open=False
+
         self.target = target
         self.notebook = notebook
 
@@ -27,28 +30,25 @@ class ShowJournal(object):
         self.make_liststore(self.journal)
         self.make_treeview()
 
-        # setting up the layout, putting the treeview in a scrollwindow
-        self.page = Gtk.VBox()
-
         self.scroll = Gtk.ScrolledWindow()
-        self.page.add(self.scroll)
+        self.add(self.scroll)
 
-        self.page.astroref_name = name
-        self.page.set_vexpand(True)
-        self.page.set_hexpand(True)
+        self.astroref_name = name
+        self.set_vexpand(True)
+        self.set_hexpand(True)
         self.scroll.add(self.treeview)
 
-        self.header = JournalPopupWindow(self.notebook, self.page, name)
+        self.header = JournalPopupWindow(self.notebook, self, name)
 
 
-        self.notebook.append_page(self.page, self.header)
-        self.notebook.set_tab_reorderable(self.page, True)
+        self.notebook.append_page(self, self.header)
+        self.notebook.set_tab_reorderable(self, True)
         self.notebook.show_all()
         GLib.idle_add(self.header.spin_on)
 
         self.download()
 
-        self.page.show_all() 
+        self.show_all() 
         self.scroll.show_all()
         self.notebook.show_all()
         self.header.show_all()
@@ -185,7 +185,65 @@ class ShowJournal(object):
                 ShowJournal(article.references,self.notebook,'Refs:'+article.name)
             else:
                 p = pdf.ShowPDF(article,self.notebook)
-                p.add()
+                p.add_page()
+
+
+    def searchbar(self, widget, event=None):
+        if event is None:
+            return False
+
+        keyval = event.keyval
+        keyval_name = Gdk.keyval_name(keyval)
+        state = event.state
+        ctrl = (state & Gdk.ModifierType.CONTROL_MASK)
+
+        if ctrl and keyval_name == 'f':
+            if not self.has_search_open:
+                sb = SearchBar(self)     
+                self.pack_start(sb,False,False,0)
+                self.reorder_child(sb,0)
+                sb.show_all()
+                self.has_search_open = True
+                return True
+
+        return False
+
+
+class SearchBar(Gtk.HBox):
+    def __init__(self, parent):
+        Gtk.HBox.__init__(self)
+
+        self.parent = parent
+
+        self.sb = Gtk.SearchEntry()
+        self.pack_start(self.sb,True,True,0)
+
+        buttons = [
+            ['go-up',self.on_next],
+            ['go-down',self.on_prev],
+            ['window-close-symbolic',self.on_close]
+        ]
+
+        self.bs = []
+        for i in buttons:
+            self.bs.append(Gtk.Button())
+            image = Gtk.Image()
+            image.set_from_icon_name(i[0], Gtk.IconSize.BUTTON)
+            self.bs[-1].set_image(image)
+            self.bs[-1].connect('clicked',i[1])
+            self.pack_start(self.bs[-1],False,False,10)
+
+    def on_next(self, button):
+        pass
+
+    def on_prev(self, button):
+        pass
+
+    def on_close(self, button):
+        self.parent.remove(self)
+        self.parent.has_search_open = False
+
+
 
 
 class JournalPopupWindow(Gtk.EventBox):
