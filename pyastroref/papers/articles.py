@@ -431,7 +431,7 @@ class search(object):
             else:
                 res['bibcode'] = None
         elif 'arxiv.org/' in url: #ARXIV
-            res['arxiv'] = url.split('/')[-1]
+            res['arxiv'] = url.split('/')[-1].split('v')[0]
         elif "iopscience.iop.org" in url: #ApJ, ApJS
             #http://iopscience.iop.org/article/10.3847/1538-4365/227/2/22/meta
             res['doi'] = url.partition('article/')[-1].replace('/meta','')
