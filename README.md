@@ -2,7 +2,7 @@
 # pyAstroRef
 
 
-An astronomy focused reference manager with integration with adsabs and the arxiv.
+An astronomy focused reference manager which integrates with adsabs and the arxiv.
 
 
 ## Installation
@@ -32,13 +32,14 @@ pyastroref
 
 You will need your own ADS api key: https://ui.adsabs.harvard.edu/user/settings/token
 
-This can either be saved to a file:
+This can either be saved to the file:
 ```
 ~/.ads/dev_key
 ```
 
 Or it can be set in the options menu.
 
+Note after changing (or setting) your ads_key you will need to restart pyAstroRef.
 
 ## Acknowledgements
 
