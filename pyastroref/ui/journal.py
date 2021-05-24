@@ -17,7 +17,8 @@ adsData = ads.adsabs()
 adsSearch = ads.articles.search(adsData.token)
 
 class ShowJournal(Gtk.VBox):
-    cols = ["Title", "First Author", "Year", "Authors", "Journal","References", "Citations", "PDF", "Bibtex"]
+    cols = ["Title", "First Author", "Year", "Authors", "Journal","References", "Citations", 
+            "PDF", "Bibtex","bibcode"]
     def __init__(self, target, notebook, name):
         Gtk.VBox.__init__(self)
         self.has_search_open=False
@@ -27,7 +28,8 @@ class ShowJournal(Gtk.VBox):
 
         self.store = Gtk.ListStore(*[str]*len(self.cols))
         self.journal = []
-        self.make_liststore(self.journal)
+        self._journal = []
+        self.make_liststore(self._journal)
         self.make_treeview()
 
         self.scroll = Gtk.ScrolledWindow()
@@ -55,16 +57,16 @@ class ShowJournal(Gtk.VBox):
 
     def download(self):
         def threader():
-            self.journal = []
+            self._journal = []
             GLib.idle_add(self.store.clear)
             try:
-                self.journal = self.target()
+                self._journal = self.target()
             except articles.SearchError:
                 GLib.idle_add(utils.ads_error_window)
 
-            GLib.idle_add(self.make_liststore,self.journal)
+            GLib.idle_add(self.make_liststore,self._journal)
             GLib.idle_add(self.header.spin_off)
-            self.header.data = self.journal
+            self.header.data = self._journal
 
         thread = threading.Thread(target=threader)
         thread.daemon = True
@@ -96,13 +98,24 @@ class ShowJournal(Gtk.VBox):
                 str(paper.reference_count),
                 str(paper.citation_count),
                 pdficon,
-                'edit-copy'
+                'edit-copy',
+                paper.bibcode
             ])
+
+        self.journal = journal
+
+
+
+    def make_treeviewsort(self):
+        self.treeviewsorted = Gtk.TreeModelSort(model=self.store)
+        self.treeviewsorted.set_sort_func(2, self.int_compare, 2)
+        self.treeviewsorted.set_sort_func(5, self.int_compare, 5)
+        self.treeviewsorted.set_sort_func(6, self.int_compare, 6)
 
     def make_treeview(self):
         # creating the treeview and adding the columns
-        self.treeviewsorted = Gtk.TreeModelSort(model=self.store)
-
+        self.make_treeviewsort()
+        
         self.treeview = Gtk.TreeView.new_with_model(self.treeviewsorted)
         self.treeview.set_has_tooltip(True)
         for i, column_title in enumerate(self.cols):
@@ -120,20 +133,18 @@ class ShowJournal(Gtk.VBox):
                 column.set_sort_column_id(i)
                 if column_title == 'Title':
                     column.set_expand(True)
+                if column_title == 'bibcode':
+                    column.set_visible(False)
 
             self.treeview.append_column(column)
-
-        self.treeviewsorted.set_sort_func(2, self.int_compare, 2)
-        self.treeviewsorted.set_sort_func(5, self.int_compare, 5)
-        self.treeviewsorted.set_sort_func(6, self.int_compare, 6)
 
         self.treeview.get_column(2).clicked()
         self.treeview.set_search_column(-1)
 
-        #self.treeview.connect('row-activated' , self.button_press_event)
         self.treeview.connect('query-tooltip' , self.tooltip)
         self.treeview.connect('button-press-event' , self.button_press_event)
         self.treeview.connect('start-interactive-search', self.searchbar)
+
 
     def int_compare(self, model, row1, row2, user_data):
         value1 = int(model.get_value(row1, user_data))
@@ -144,7 +155,6 @@ class ShowJournal(Gtk.VBox):
             return 0
         else:
             return 1
-
 
     def tooltip(self, widget, x, y, keyboard, tooltip):
         if not len(self.journal):
@@ -165,12 +175,14 @@ class ShowJournal(Gtk.VBox):
 
     def button_press_event(self, treeview, event):
         try:
-            path,col,_,_ = self.treeview.get_path_at_pos(int(event.x),int(event.y))
+            path,col,_,_ = treeview.get_path_at_pos(int(event.x),int(event.y))
         except TypeError:
             return True
 
         if path is None:
             return False
+
+
         cp = self.treeviewsorted.convert_path_to_child_path(path)
         row = cp.get_indices()[0] 
         article = self.journal[row]
@@ -215,10 +227,12 @@ class ShowJournal(Gtk.VBox):
     def refresh_results(self, widget):
         query = widget.get_text().lower()
         journal = []
-        if len(self.journal) == 0:
+        if len(self._journal) == 0 or len(self.journal) ==0:
             return
-        self.journal.reset()
-        for paper in self.journal:
+        
+        if hasattr(self._journal,'reset'):
+            self._journal.reset()
+        for paper in self._journal:
             if query in paper.title.lower():
                 journal.append(paper)
             elif query in paper.abstract.lower():
@@ -229,8 +243,6 @@ class ShowJournal(Gtk.VBox):
                 journal.append(paper)
 
         self.make_liststore(journal)
-
-
 
 
 class SearchBar(Gtk.HBox):
@@ -265,7 +277,7 @@ class SearchBar(Gtk.HBox):
     def on_close(self, button):
         self.parent.remove(self)
         self.parent.has_search_open = False
-        self.parent.make_liststore(self.parent.journal)
+        self.parent.make_liststore(self.parent._journal)
 
 
 
