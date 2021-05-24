@@ -46,6 +46,7 @@ def save_key_file(filename,key):
         print(key,file=f)
 
 def read_key_file(filename):
+    os.makedirs(os.path.basename(filename),exist_ok=True) # Handle making folders on first run
     try:
         with open(filename,'r') as f:
             result = f.readline().strip() 
