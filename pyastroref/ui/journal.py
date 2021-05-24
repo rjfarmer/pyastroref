@@ -204,7 +204,7 @@ class ShowJournal(Gtk.VBox):
         if ctrl and keyval_name == 'f':
             if not self.has_search_open:
                 sb = SearchBar(self)     
-                self.pack_start(sb,False,False,0)
+                self.pack_start(sb,False,False,20)
                 self.reorder_child(sb,0)
                 sb.show_all()
                 self.has_search_open = True
