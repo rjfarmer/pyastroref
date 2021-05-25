@@ -73,9 +73,6 @@ class ShowJournal(Gtk.VBox):
         thread.start()
 
     def make_liststore(self,journal):
-        if hasattr(journal,'reset'):
-            journal.reset()
-
         self.store.clear()
         # Creating the ListStore model
         for paper in journal:
@@ -230,8 +227,6 @@ class ShowJournal(Gtk.VBox):
         if len(self._journal) == 0 or len(self.journal) ==0:
             return
         
-        if hasattr(self._journal,'reset'):
-            self._journal.reset()
         for paper in self._journal:
             if query in paper.title.lower():
                 journal.append(paper)

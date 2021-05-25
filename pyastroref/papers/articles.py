@@ -53,8 +53,6 @@ class journal(object):
             for i in data:
                 self._data[i['bibcode']] = article(self.token, i['bibcode'], data=i)
 
-        self._n = 0
-
     def __len__(self):
         return len(self._set_bibcodes)
 
@@ -70,18 +68,8 @@ class journal(object):
             return self.__getitem__(self._bibcodes[key])
 
     def __iter__(self):
-        return self
-
-    def __next__(self):
-        if self._n >= len(self._bibcodes):
-            raise StopIteration
-
-        res = self.__getitem__(self._bibcodes[self._n])
-        self._n +=1
-        return res
-
-    def reset(self):
-        self._n = 0
+        for i in self._bibcodes:
+            yield self.__getitem__(i)
 
     def keys(self):
         return self._set_bibcodes

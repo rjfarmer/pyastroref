@@ -16,7 +16,6 @@ class libraries(object):
     def __init__(self, token):
         self.token = token
         self.data = None
-        self._n = 0
         
     def update(self):
         data = requests.get(
@@ -141,21 +140,8 @@ class libraries(object):
             return False
 
     def __iter__(self):
-        return self
-
-    def __next__(self):
-        if self.data is None:
-            self.update()
-
-        if self._n >= len(self.data):
-            raise StopIteration
-
-        res = self.get(self.keys()[self._n])
-        self._n +=1
-        return res
-
-    def reset(self):
-        self._n = 0
+        for i in self.data:
+            yield self.get(i)
 
     def __dir__(self):
         return ['reset','add','get','names','removes','update'] + list(self.keys())
@@ -168,7 +154,6 @@ class library(object):
         self.token = token
         self.libraryid = libraryid
         self.update()
-        self._n = 0
 
     def url(self):
         return utils.urls['libraries'] + '/' + self.libraryid 
@@ -255,18 +240,8 @@ class library(object):
         return key in self.docs
 
     def __iter__(self):
-        return self
-
-    def __next__(self):
-        if self._n >= len(self.docs):
-            raise StopIteration
-
-        res = self.get(self.keys()[self._n])
-        self._n +=1
-        return res
-
-    def reset(self):
-        self._n = 0
+        for i in self.docs:
+            yield self.get(i)
 
     # Just makes sure we have a list of strings
     def _ensure_list(self, s):
