@@ -125,5 +125,4 @@ class Collection(object):
 
             self._results[name] = articles.search(self.token).search(query)
 
-        self._results[name].reset()
         return self._results[name]
