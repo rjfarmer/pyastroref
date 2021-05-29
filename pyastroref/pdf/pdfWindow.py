@@ -12,6 +12,7 @@ from gi.repository import EvinceView
 
 EvinceDocument.init()
 
+from ..ui import utils
 
 class pdfWin(Gtk.VBox):
     def __init__(self, filename):
@@ -33,12 +34,29 @@ class pdfWin(Gtk.VBox):
         self.sb = Gtk.ScrolledWindow()
         self.sb.add(self.view)
 
+        self.view.connect('key-press-event', self.key_press)
+
         self.pack_start(self.sb,True,True,0)
 
         self.show_all()
 
+
     def searchbar(self, widget, event=None):
         pass
+
+    def current_page(self):
+        return self.doc.get_page(self.model.get_page)
+
+    def key_press(self, widget, event=None):
+        keyval = event.keyval
+        keyval_name = Gdk.keyval_name(keyval)
+        state = event.state
+        ctrl = (state & Gdk.ModifierType.CONTROL_MASK)
+
+        if ctrl and keyval_name == 'c':
+            utils.clipboard(self.view.get_selected_text())
+            return
+
 
 
 class SearchBar(Gtk.HBox):
