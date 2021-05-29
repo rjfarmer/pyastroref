@@ -16,6 +16,8 @@ from . import utils
 from . import journal
 from . import libraries
 
+from ..pdf import pdfWindow
+
 EvinceDocument.init()
 
 
@@ -24,9 +26,6 @@ class ShowPDF(Gtk.VBox):
         Gtk.VBox.__init__(self)
 
         self.has_search_open = False
-
-        self.sb = Gtk.ScrolledWindow()
-        self.add(self.sb)
 
         self.data = data
         self.notebook = notebook
@@ -37,21 +36,28 @@ class ShowPDF(Gtk.VBox):
 
         self._filename = self.data.filename(True)
 
-    def download(self):
-        def get_pdf():
-            try:
-                self.data.pdf(self._filename)
-                GLib.idle_add(self.show)
-            except:
-                pass
+        self.add_page()
+
+        utils.thread(self.download_and_show)
+
+
+    def download_and_show(self):
+        GLib.idle_add(self.header.spin_on)
+        try:
+            self.data.pdf(self._filename)
+        except:
+            GLib.idle_add(self.header.spin_off)
+            return
 
         if not os.path.exists(self._filename):
-            thread = threading.Thread(target=get_pdf)
-            thread.daemon = True
-            thread.start()
-        else:
-            self.show()
-            
+            GLib.idle_add(self.header.spin_off)
+            return 
+
+        self.pdf = pdfWindow.pdfWin(self._filename)
+
+        GLib.idle_add(self.add,self.pdf)
+        GLib.idle_add(self.header.spin_off)
+        return
 
     def add_page(self):
         for p in range(self.notebook.get_n_pages()):
@@ -61,88 +67,12 @@ class ShowPDF(Gtk.VBox):
                 self.notebook.show_all()
                 return
 
-
         self.page_num = self.notebook.append_page(self, self.header)
         self.notebook.set_tab_reorderable(self, True)
         self.notebook.show_all()
 
-        try:
-            self.download()
-        except ValueError:
-            pass
-
-    def show(self):
-        try:
-            doc = EvinceDocument.Document.factory_get_document('file://'+self._filename)
-        except gi.repository.GLib.Error:
-            GLib.idle_add(self.header.spin_off)
-            return
-        view = EvinceView.View()
-        model = EvinceView.DocumentModel()
-        model.set_document(doc)
-        view.set_model(model)
-        self.sb.add(view)
-
-        self.sb.show_all()
-        self.show_all()
-        self.notebook.show_all()
-        GLib.idle_add(self.header.spin_off)
-
     def searchbar(self, widget, event=None):
-        if event is None:
-            return False
-
-        keyval = event.keyval
-        keyval_name = Gdk.keyval_name(keyval)
-        state = event.state
-        ctrl = (state & Gdk.ModifierType.CONTROL_MASK)
-
-        if ctrl and keyval_name == 'f':
-            if not self.has_search_open:
-                sb = SearchBar(self)     
-                self.pack_start(sb,False,False,0)
-                self.reorder_child(sb,0)
-                sb.show_all()
-                self.has_search_open = True
-                return True
-
-        return False
-
-
-class SearchBar(Gtk.HBox):
-    def __init__(self, parent):
-        Gtk.HBox.__init__(self)
-
-        self.parent = parent
-
-        self.sb = Gtk.SearchEntry()
-        self.pack_start(self.sb,True,True,150)
-
-        buttons = [
-            ['go-up',self.on_next],
-            ['go-down',self.on_prev],
-            ['window-close-symbolic',self.on_close]
-        ]
-
-        self.bs = []
-        for i in buttons:
-            self.bs.append(Gtk.Button())
-            image = Gtk.Image()
-            image.set_from_icon_name(i[0], Gtk.IconSize.BUTTON)
-            self.bs[-1].set_image(image)
-            self.bs[-1].connect('clicked',i[1])
-            self.pack_start(self.bs[-1],False,False,10)
-
-    def on_next(self, button):
-        pass
-
-    def on_prev(self, button):
-        pass
-
-    def on_close(self, button):
-        self.parent.remove(self)
-        self.parent.has_search_open = False
-
+        self.pdf.searchbar(widget,event)
 
 
 class PDFPopupWindow(Gtk.EventBox):

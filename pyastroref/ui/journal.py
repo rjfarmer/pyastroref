@@ -197,8 +197,8 @@ class ShowJournal(Gtk.VBox):
             elif title == 'References':
                 ShowJournal(article.references,self.notebook,'Refs:'+article.name)
             else:
-                p = pdf.ShowPDF(article,self.notebook)
-                p.add_page()
+                pdf.ShowPDF(article,self.notebook)
+
 
 
     def searchbar(self, widget, event=None):

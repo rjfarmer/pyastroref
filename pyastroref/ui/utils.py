@@ -62,3 +62,8 @@ def get_dm():
     settings = Gtk.Settings.get_default()
     print(settings.get_property("gtk-application-prefer-dark-theme"))
     return settings.get_property("gtk-application-prefer-dark-theme")
+
+def thread(function,*args):
+    thread = threading.Thread(target=function,args=args)
+    thread.daemon = True
+    thread.start()
