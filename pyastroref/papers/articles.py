@@ -77,6 +77,13 @@ class journal(object):
     def bibcodes(self):
         return self.keys()
 
+    def values(self):
+        return self._data.values()
+
+    def items(self):
+        return self._data.items()
+
+
 
 class article(object):
     '''

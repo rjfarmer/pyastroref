@@ -146,6 +146,13 @@ class libraries(object):
     def __dir__(self):
         return ['reset','add','get','names','removes','update'] + list(self.keys())
 
+    def values(self):
+        return self.data.values()
+
+    def items(self):
+        return self.data.items()
+
+
 class library(object):
     '''
     An instance of a single ADS library
