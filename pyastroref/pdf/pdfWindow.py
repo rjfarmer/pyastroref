@@ -27,6 +27,7 @@ class pdfWin(Gtk.VBox):
         self.model = EvinceView.DocumentModel()
         self.model.set_document(self.pdf)
         self.view.set_model(self.model)
+        self.view.find_set_highlight_search(True)
 
         self.header = pdfHead(self)
         self.pack_start(self.header,False,False,0)
@@ -44,19 +45,46 @@ class pdfWin(Gtk.VBox):
     def searchbar(self, widget, event=None):
         pass
 
-    def current_page(self):
-        return self.doc.get_page(self.model.get_page)
-
     def key_press(self, widget, event=None):
         keyval = event.keyval
         keyval_name = Gdk.keyval_name(keyval)
         state = event.state
         ctrl = (state & Gdk.ModifierType.CONTROL_MASK)
 
-        if ctrl and keyval_name == 'c':
-            utils.clipboard(self.view.get_selected_text())
+        if ctrl:
+            if keyval_name == 'c':
+                utils.clipboard(self.view.get_selected_text())
+                return
+            elif keyval_name == 'h':
+                #highlight
+                return
+            elif keyval_name == 'a':
+                #Annotate
+                return
+            elif keyval_name == 's':
+                #save
+                return
+            elif keyval_name == 'p':
+                #print
+                return
+
+        if keyval_name == 'Page_Up':
+            cur_page = self.model.get_page()
+            self.model.set_page(cur_page-1)
             return
 
+        if keyval_name == 'Page_Down':
+            cur_page = self.model.get_page()
+            self.model.set_page(cur_page+1)
+            return
+
+        if keyval_name == 'Home':
+            self.model.set_page(0)
+            return
+
+        if keyval_name == 'End':
+            self.model.set_page(self.pdf.get_n_pages())
+            return
 
 
 class SearchBar(Gtk.HBox):
@@ -82,6 +110,8 @@ class SearchBar(Gtk.HBox):
 
         self.pack_start(hb,True,True,0)
 
+        self.sb.connect("changed", self.search)
+
 
     def add_button(self,button):
         self.bs.append(Gtk.Button())
@@ -93,10 +123,18 @@ class SearchBar(Gtk.HBox):
 
 
     def on_next(self, button):
-        pass
+        self.parent.view.find_next()
 
     def on_prev(self, button):
-        pass
+        self.parent.view.find_previous()
+
+
+    def search(self, widget):
+        query = widget.get_text().lower()
+        print(query)
+
+        search = EvinceView.JobFind()
+        self.parent.view.find_started(search)
 
 
 class pdfHead(Gtk.HBox):
@@ -139,12 +177,10 @@ class pdfHead(Gtk.HBox):
 
 
     def zoom_in(self,button):
-        #self.parent.pdf_view.zoom_in()
-        pass
+        self.parent.model.set_scale(self.parent.model.get_scale()*1.1)
 
     def zoom_out(self,button):
-        #self.parent.pdf_view.zoom_out() 
-        pass
+        self.parent.model.set_scale(self.parent.model.get_scale()*0.9)
 
     def rotate_left(self, button):
         rotation = self.parent.model.get_rotation()
