@@ -22,16 +22,16 @@ class pdfWin(Gtk.VBox):
 
         self.pdf = EvinceDocument.Document.factory_get_document('file://'+self._filename)
 
-        self.pdf_view = EvinceView.View()
-        self.pdf_model = EvinceView.DocumentModel()
-        self.pdf_model.set_document(self.pdf)
-        self.pdf_view.set_model(self.pdf_model)
+        self.view = EvinceView.View()
+        self.model = EvinceView.DocumentModel()
+        self.model.set_document(self.pdf)
+        self.view.set_model(self.model)
 
         self.header = pdfHead(self)
         self.pack_start(self.header,False,False,0)
 
         self.sb = Gtk.ScrolledWindow()
-        self.sb.add(self.pdf_view)
+        self.sb.add(self.view)
 
         self.pack_start(self.sb,True,True,0)
 
@@ -90,10 +90,10 @@ class pdfHead(Gtk.HBox):
             {'image':'document-save','callback':None,'tooltip':'Save PDF','button':None},
             {'image':'document-print','callback':None,'tooltip':'Print PDF','button':None},
             {'image':'view-fullscreen','callback':None,'tooltip':'Fullscreen','button':None},
-            {'image':'zoom-in','callback':None,'tooltip':'Zoom in','button':None},
-            {'image':'zoom-out','callback':None,'tooltip':'Zoom out','button':None},
-            {'image':'object-rotate-left','callback':None,'tooltip':'Rotate left','button':None},
-            {'image':'object-rotate-right','callback':None,'tooltip':'Rotate right','button':None},
+            {'image':'zoom-in','callback':self.zoom_in,'tooltip':'Zoom in','button':None},
+            {'image':'zoom-out','callback':self.zoom_out,'tooltip':'Zoom out','button':None},
+            {'image':'object-rotate-left','callback':self.rotate_left,'tooltip':'Rotate left','button':None},
+            {'image':'object-rotate-right','callback':self.rotate_right,'tooltip':'Rotate right','button':None},
             {'image':'applications-graphics','callback':None,'tooltip':'Highlight text','button':None},
             {'image':'font-x-generic','callback':None,'tooltip':'Add annotation','button':None}
         ]
@@ -118,3 +118,30 @@ class pdfHead(Gtk.HBox):
             button['button'].connect('clicked',button['callback'])
         self.pack_start(button['button'],False,False,0)
         button['button'].set_tooltip_text(button['tooltip'])
+
+
+    def zoom_in(self,button):
+        #self.parent.pdf_view.zoom_in()
+        pass
+
+    def zoom_out(self,button):
+        #self.parent.pdf_view.zoom_out() 
+        pass
+
+    def rotate_left(self, button):
+        rotation = self.parent.model.get_rotation()
+
+        rotation -= 90
+        if rotation < 0:
+            rotation =  0
+
+        self.parent.model.set_rotation(rotation)
+
+    def rotate_right(self, button):
+        rotation = self.parent.model.get_rotation()
+
+        rotation += 90
+        if rotation > 360:
+            rotation =  0
+
+        self.parent.model.set_rotation(rotation)
