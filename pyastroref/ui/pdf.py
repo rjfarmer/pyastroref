@@ -30,6 +30,7 @@ class ShowPDF(Gtk.VBox):
         self.data = data
         self.notebook = notebook
 
+
         self.astroref_name = self.data.bibcode
 
         self.header = PDFPopupWindow(self.notebook, self, self.data)
@@ -57,6 +58,7 @@ class ShowPDF(Gtk.VBox):
 
         GLib.idle_add(self.add,self.pdf)
         GLib.idle_add(self.header.spin_off)
+        self.header.pdf = self.pdf
         return
 
     def add_page(self):
@@ -82,6 +84,7 @@ class PDFPopupWindow(Gtk.EventBox):
         self.notebook = notebook
         self.page = page
         self.data = data
+        self.pdf = None
 
         self.spinner = Gtk.Spinner()
         self.header = Gtk.HBox()
@@ -137,6 +140,21 @@ class PDFPopupWindow(Gtk.EventBox):
         self.button['add_lib'] = Gtk.Button.new_with_label("Add to library")
         vbox.pack_start(self.button['add_lib'], False, True, 0)
 
+
+        vbox.pack_start(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL), False, True, 10)
+
+
+        self.button['save'] = Gtk.Button.new_with_label("Save")
+        vbox.pack_start(self.button['save'], False, True, 0)
+
+        self.button['save_as'] = Gtk.Button.new_with_label("Save as")
+        vbox.pack_start(self.button['save_as'], False, True, 0)
+
+        self.button['print'] = Gtk.Button.new_with_label("Print")
+        vbox.pack_start(self.button['print'], False, True, 0)
+
+        vbox.pack_start(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL), False, True, 10)
+
         self.button['close'] = Gtk.Button.new_with_label("Close")
         vbox.pack_start(self.button['close'], False, True, 0)
 
@@ -158,6 +176,10 @@ class PDFPopupWindow(Gtk.EventBox):
         self.button['cites'].connect("button-press-event", self.bp_cites)
         self.button['refs'].connect("button-press-event", self.bp_refs)
         self.button['add_lib'].connect("button-press-event", self.bp_add_lib)
+
+        self.button['save'].connect("button-press-event", self.bp_save)
+        self.button['save_as'].connect("button-press-event", self.bp_save_as)
+        self.button['print'].connect("button-press-event", self.bp_print)
 
         self.button['close'].connect("button-press-event", self.bp_close)
         self.button['del'].connect("button-press-event", self.bp_del)
@@ -212,3 +234,12 @@ class PDFPopupWindow(Gtk.EventBox):
     def bp_del(self, widget, event):
         os.remove(self.data.filename(True))
         self.on_tab_close(widget)
+
+    def bp_print(self, widget, event):
+        self.pdf.pdf.print()
+
+    def bp_save(self, widget, event):
+        self.pdf.pdf.save()
+
+    def bp_save_as(self, widget, event):
+        self.pdf.pdf.save()
