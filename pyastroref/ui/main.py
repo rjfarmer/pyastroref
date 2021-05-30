@@ -41,8 +41,6 @@ class MainWindow(Gtk.Window):
         if adsData.token is None:
             options.OptionsMenu()
 
-        self.connect('key-press-event', self.searchbar)
-
         self.show_all()
 
 
@@ -116,14 +114,3 @@ class MainWindow(Gtk.Window):
         self.add(self.grid)
 
         self.grid.add(self.panels)
-
-
-    def searchbar(self, widget, event=None):
-        keyval = event.keyval
-        keyval_name = Gdk.keyval_name(keyval)
-        state = event.state
-        ctrl = (state & Gdk.ModifierType.CONTROL_MASK)
-
-        if ctrl and keyval_name == 'f':
-            p = self.right_panel.get_nth_page(self.right_panel.get_current_page())
-            p.searchbar(widget, event)

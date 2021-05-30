@@ -32,6 +32,11 @@ class ShowJournal(Gtk.VBox):
         self.make_liststore(self._journal)
         self.make_treeview()
 
+        self.sb = Gtk.SearchEntry() 
+        self.pack_start(self.sb,False,False,0)
+        self.sb.connect("changed", self.refresh_results)    
+        self.sb.grab_focus_without_selecting()
+
         self.scroll = Gtk.ScrolledWindow()
         self.add(self.scroll)
 
@@ -140,7 +145,6 @@ class ShowJournal(Gtk.VBox):
 
         self.treeview.connect('query-tooltip' , self.tooltip)
         self.treeview.connect('button-press-event' , self.button_press_event)
-        self.treeview.connect('start-interactive-search', self.searchbar)
 
 
     def int_compare(self, model, row1, row2, user_data):
@@ -200,27 +204,6 @@ class ShowJournal(Gtk.VBox):
                 pdf.ShowPDF(article,self.notebook)
 
 
-
-    def searchbar(self, widget, event=None):
-        if event is None:
-            return False
-
-        keyval = event.keyval
-        keyval_name = Gdk.keyval_name(keyval)
-        state = event.state
-        ctrl = (state & Gdk.ModifierType.CONTROL_MASK)
-
-        if ctrl and keyval_name == 'f':
-            if not self.has_search_open:
-                sb = SearchBar(self)     
-                self.pack_start(sb,False,False,20)
-                self.reorder_child(sb,0)
-                sb.show_all()
-                self.has_search_open = True
-                return True
-
-        return False
-
     def refresh_results(self, widget):
         query = widget.get_text().lower()
         journal = []
@@ -238,44 +221,6 @@ class ShowJournal(Gtk.VBox):
                 journal.append(paper)
 
         self.make_liststore(journal)
-
-
-class SearchBar(Gtk.HBox):
-    def __init__(self, parent):
-        Gtk.HBox.__init__(self)
-
-        self.parent = parent
-
-        self.sb = Gtk.SearchEntry()
-        self.pack_start(self.sb,True,True,150)
-        
-        self.sb.connect("changed", self.parent.refresh_results)    
-        self.sb.grab_focus_without_selecting()
-
-
-        buttons = [
-            ['window-close-symbolic',self.on_close]
-        ]
-
-        self.bs = []
-        for i in buttons:
-            self.bs.append(Gtk.Button())
-            image = Gtk.Image()
-            image.set_from_icon_name(i[0], Gtk.IconSize.BUTTON)
-            self.bs[-1].set_image(image)
-            self.bs[-1].connect('clicked',i[1])
-            self.pack_start(self.bs[-1],False,False,10)
-
-        self.show_all()
-
-
-    def on_close(self, button):
-        self.parent.remove(self)
-        self.parent.has_search_open = False
-        self.parent.make_liststore(self.parent._journal)
-
-
-
 
 
 class JournalPopupWindow(Gtk.EventBox):
