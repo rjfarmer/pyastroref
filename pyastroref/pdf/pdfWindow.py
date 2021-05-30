@@ -123,7 +123,7 @@ class _Pdf(object):
                 self.save()
                 return
             elif keyval_name == 'p':
-                #print
+                self.print()
                 return
             elif keyval_name == 'Left':
                 self.rotate_left()
@@ -148,6 +148,30 @@ class _Pdf(object):
             self.end_page()
             return
 
+    def print(self):
+        print_op = Gtk.PrintOperation()
+        print_op.connect("begin-print", self.begin_print)
+        print_op.connect("draw-page", self.draw_page)
+        result = print_op.run(Gtk.PrintOperationAction.PRINT_DIALOG)
+
+        if result == Gtk.PrintOperationResult.ERROR:
+            message = self.operation.get_error()
+
+            dialog = Gtk.MessageDialog(None,
+                                       0,
+                                       Gtk.MessageType.ERROR,
+                                       Gtk.ButtonsType.CLOSE,
+                                       message)
+
+            dialog.run()
+            dialog.destroy()
+
+    def begin_print(self,operation,*args):
+        operation.set_n_pages(self.pdf.get_n_pages())
+
+    def draw_page(self,operation, context, page_nr, *args):
+        cairo = context.get_cairo_context()
+        self.pdf.print_page(self.pdf.get_page(page_nr),cairo)
 
 class SearchBar(Gtk.HBox):
     def __init__(self, pdf):
