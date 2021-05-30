@@ -1,6 +1,8 @@
 import os
 import sys
 import threading
+import tempfile
+import shutil
 
 import gi
 gi.require_version("Gtk", "3.0")
@@ -21,21 +23,13 @@ class pdfWin(Gtk.VBox):
 
         self._filename = filename
 
-        self.pdf = EvinceDocument.Document.factory_get_document('file://'+self._filename)
+        self.pdf = _Pdf(self._filename)
 
-        self.view = EvinceView.View()
-        self.model = EvinceView.DocumentModel()
-        self.model.set_document(self.pdf)
-        self.view.set_model(self.model)
-        self.view.find_set_highlight_search(True)
-
-        self.header = pdfHead(self)
+        self.header = pdfHead(self.pdf)
         self.pack_start(self.header,False,False,0)
 
         self.sb = Gtk.ScrolledWindow()
-        self.sb.add(self.view)
-
-        self.view.connect('key-press-event', self.key_press)
+        self.sb.add(self.pdf.view)
 
         self.pack_start(self.sb,True,True,0)
 
@@ -45,15 +39,79 @@ class pdfWin(Gtk.VBox):
     def searchbar(self, widget, event=None):
         pass
 
+
+class _Pdf(object):
+    def __init__(self, filename):
+        self._filename = filename
+        self._uri = 'file://'+self._filename
+
+        self.load_pdf()
+
+        # Autosave pdf every 1 minutes (set in milliseconds)
+        #GLib.timeout_add(1 * 60000 ,self.save)
+
+    def load_pdf(self):
+        self.pdf = EvinceDocument.Document.factory_get_document(self._uri)
+
+        self.view = EvinceView.View()
+        self.model = EvinceView.DocumentModel()
+        self.model.set_document(self.pdf)
+        self.view.set_model(self.model)
+        self.view.find_set_highlight_search(True)
+
+        self.view.connect('key-press-event', self.key_press)
+
+
+    def start_page(self, *args):
+        self.model.set_page(0)
+
+    def end_page(self, *args):
+        self.model.set_page(self.pdf.get_n_pages())
+
+    def next_page(self, *args):
+        cur_page = self.model.get_page()
+        self.model.set_page(cur_page+1)
+
+    def prev_page(self, *args):
+        cur_page = self.model.get_page()
+        self.model.set_page(cur_page-1)
+
+    def highlighted_text(self, *args):
+        return self.view.get_selected_text()
+
+    def rotate_left(self, *args):
+        rotation = self.model.get_rotation()
+
+        rotation -= 90
+
+        self.model.set_rotation(rotation)
+
+    def rotate_right(self, *args):
+        rotation = self.model.get_rotation()
+
+        rotation += 90
+
+        self.model.set_rotation(rotation)
+
+    def save(self):
+        print('saving')
+        with tempfile.TemporaryDirectory() as tmp:
+            filename = os.path.join(tmp, 'tmp.pdf')
+            print(filename,self._filename)
+            if self.pdf.save('file://'+filename):
+                shutil.move(filename, self._filename)
+        print('Done saving')
+
     def key_press(self, widget, event=None):
         keyval = event.keyval
         keyval_name = Gdk.keyval_name(keyval)
         state = event.state
         ctrl = (state & Gdk.ModifierType.CONTROL_MASK)
 
+        print(keyval_name)
         if ctrl:
             if keyval_name == 'c':
-                utils.clipboard(self.view.get_selected_text())
+                utils.clipboard(self.highlighted_text())
                 return
             elif keyval_name == 'h':
                 #highlight
@@ -62,36 +120,40 @@ class pdfWin(Gtk.VBox):
                 #Annotate
                 return
             elif keyval_name == 's':
-                #save
+                self.save()
                 return
             elif keyval_name == 'p':
                 #print
                 return
+            elif keyval_name == 'Left':
+                self.rotate_left()
+                return
+            elif keyval_name == 'Right':
+                self.rotate_right()
+                return
 
         if keyval_name == 'Page_Up':
-            cur_page = self.model.get_page()
-            self.model.set_page(cur_page-1)
+            self.prev_page()
             return
 
         if keyval_name == 'Page_Down':
-            cur_page = self.model.get_page()
-            self.model.set_page(cur_page+1)
+            self.next_page()
             return
 
         if keyval_name == 'Home':
-            self.model.set_page(0)
+            self.start_page()
             return
 
         if keyval_name == 'End':
-            self.model.set_page(self.pdf.get_n_pages())
+            self.end_page()
             return
 
 
 class SearchBar(Gtk.HBox):
-    def __init__(self, parent):
+    def __init__(self, pdf):
         Gtk.HBox.__init__(self)
 
-        self.parent = parent
+        self.pdf = pdf
 
         hb = Gtk.HBox()
 
@@ -123,10 +185,10 @@ class SearchBar(Gtk.HBox):
 
 
     def on_next(self, button):
-        self.parent.view.find_next()
+        self.pdf.view.find_next()
 
     def on_prev(self, button):
-        self.parent.view.find_previous()
+        self.pdf.view.find_previous()
 
 
     def search(self, widget):
@@ -134,22 +196,15 @@ class SearchBar(Gtk.HBox):
         print(query)
 
         search = EvinceView.JobFind()
-        self.parent.view.find_started(search)
+        self.pdf.view.find_started(search)
 
 
 class pdfHead(Gtk.HBox):
-    def __init__(self, parent):
+    def __init__(self, pdf):
         Gtk.HBox.__init__(self)
-        self.parent = parent
+        self.pdf = pdf
 
         buttons = [
-            {'image':'document-save','callback':None,'tooltip':'Save PDF','button':None},
-            {'image':'document-print','callback':None,'tooltip':'Print PDF','button':None},
-            {'image':'view-fullscreen','callback':None,'tooltip':'Fullscreen','button':None},
-            {'image':'zoom-in','callback':self.zoom_in,'tooltip':'Zoom in','button':None},
-            {'image':'zoom-out','callback':self.zoom_out,'tooltip':'Zoom out','button':None},
-            {'image':'object-rotate-left','callback':self.rotate_left,'tooltip':'Rotate left','button':None},
-            {'image':'object-rotate-right','callback':self.rotate_right,'tooltip':'Rotate right','button':None},
             {'image':'applications-graphics','callback':None,'tooltip':'Highlight text','button':None},
             {'image':'font-x-generic','callback':None,'tooltip':'Add annotation','button':None}
         ]
@@ -157,7 +212,8 @@ class pdfHead(Gtk.HBox):
         for i in buttons:
             self.add_button(i)
 
-        sb = SearchBar(self.parent)
+
+        sb = SearchBar(self.pdf)
         self.pack_end(sb,True,True,0)
 
         self.show_all()
@@ -174,28 +230,3 @@ class pdfHead(Gtk.HBox):
             button['button'].connect('clicked',button['callback'])
         self.pack_start(button['button'],False,False,0)
         button['button'].set_tooltip_text(button['tooltip'])
-
-
-    def zoom_in(self,button):
-        self.parent.model.set_scale(self.parent.model.get_scale()*1.1)
-
-    def zoom_out(self,button):
-        self.parent.model.set_scale(self.parent.model.get_scale()*0.9)
-
-    def rotate_left(self, button):
-        rotation = self.parent.model.get_rotation()
-
-        rotation -= 90
-        if rotation < 0:
-            rotation =  0
-
-        self.parent.model.set_rotation(rotation)
-
-    def rotate_right(self, button):
-        rotation = self.parent.model.get_rotation()
-
-        rotation += 90
-        if rotation > 360:
-            rotation =  0
-
-        self.parent.model.set_rotation(rotation)
