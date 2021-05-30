@@ -95,11 +95,15 @@ class _Pdf(object):
 
     def save(self):
         print('saving')
-        with tempfile.TemporaryDirectory() as tmp:
-            filename = os.path.join(tmp, 'tmp.pdf')
-            print(filename,self._filename)
-            if self.pdf.save('file://'+filename):
-                shutil.move(filename, self._filename)
+        tmp_file = tempfile.NamedTemporaryFile(suffix='.pdf',delete=False)
+        filename = tmp_file.name
+        print(filename,self._filename)
+        if self.pdf.save('file://'+filename):
+            tmp_file.close()
+            shutil.move(filename, self._filename)
+        else:
+            tmp_file.close()
+            os.remove(tmp_file.name)
         print('Done saving')
 
     def key_press(self, widget, event=None):
