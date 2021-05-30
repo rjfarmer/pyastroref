@@ -118,7 +118,7 @@ class _Pdf(object):
                 utils.clipboard(self.highlighted_text())
                 return
             elif keyval_name == 'h':
-                #highlight
+                self.highlight_text()
                 return
             elif keyval_name == 'a':
                 #Annotate
@@ -176,6 +176,11 @@ class _Pdf(object):
     def draw_page(self,operation, context, page_nr, *args):
         cairo = context.get_cairo_context()
         self.pdf.print_page(self.pdf.get_page(page_nr),cairo)
+
+
+    def highlight_text(self):
+        self.view.add_text_markup_annotation_for_selected_text()
+
 
 class SearchBar(Gtk.HBox):
     def __init__(self, pdf):
