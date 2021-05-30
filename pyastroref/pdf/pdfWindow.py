@@ -94,17 +94,13 @@ class _Pdf(object):
         self.model.set_rotation(rotation)
 
     def save(self):
-        print('saving')
         tmp_file = tempfile.NamedTemporaryFile(suffix='.pdf',delete=False)
         filename = tmp_file.name
-        print(filename,self._filename)
         if self.pdf.save('file://'+filename):
-            tmp_file.close()
             shutil.move(filename, self._filename)
-        else:
-            tmp_file.close()
-            os.remove(tmp_file.name)
-        print('Done saving')
+        tmp_file.close()
+        self.model.get_document().load(self._uri)
+        self.view.reload()
 
     def key_press(self, widget, event=None):
         keyval = event.keyval
