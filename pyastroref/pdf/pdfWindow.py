@@ -8,7 +8,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version('EvinceDocument', '3.0')
 gi.require_version('EvinceView', '3.0')
-from gi.repository import GLib, Gtk, GObject, GdkPixbuf, Gdk
+from gi.repository import GLib, Gtk, GObject, GdkPixbuf, Gdk, Gio
 from gi.repository import EvinceDocument
 from gi.repository import EvinceView
 
@@ -35,20 +35,20 @@ class pdfWin(Gtk.VBox):
 
         self.show_all()
 
-
-    def searchbar(self, widget, event=None):
-        pass
-
-
 class _Pdf(object):
     def __init__(self, filename):
         self._filename = filename
-        self._uri = 'file://'+self._filename
 
         self.load_pdf()
 
         # Autosave pdf every 1 minutes (set in milliseconds)
         #GLib.timeout_add(1 * 60000 ,self.save)
+        # Autosave pdf every 5 minutes (set in milliseconds)
+        GLib.timeout_add(5 * 60000 ,self.save)
+
+    @property
+    def _uri(self):
+        return 'file://'+self._filename
 
     def load_pdf(self):
         self.pdf = EvinceDocument.Document.factory_get_document(self._uri)
@@ -176,6 +176,41 @@ class _Pdf(object):
 
     def highlight_text(self):
         self.view.add_text_markup_annotation_for_selected_text()
+
+
+    def save_as(self):
+        save_dialog = Gtk.FileChooserDialog(title="Save as", transient_for=None,
+                                            action=Gtk.FileChooserAction.SAVE)
+
+        save_dialog.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+                                            Gtk.STOCK_SAVE, Gtk.ResponseType.ACCEPT)
+        # the dialog will present a confirmation dialog if the user types a file name that
+        # already exists
+        save_dialog.set_do_overwrite_confirmation(True)
+        # dialog always on top of the textview window
+        save_dialog.set_modal(True)
+        f = Gio.File.new_for_path(self._filename)
+        save_dialog.set_file(f)
+        # connect the dialog to the callback function save_response_cb()
+        save_dialog.connect("response", self.save_response_cb)
+        # show the dialog
+        save_dialog.show()
+
+    def save_response_cb(self, dialog, response_id):
+        save_dialog = dialog
+        # if response is "ACCEPT" (the button "Save" has been clicked)
+        if response_id == Gtk.ResponseType.ACCEPT:
+            # self.file is the currently selected file
+            f = save_dialog.get_file()
+            self._filename = f.get_path()
+            # save to file (see below)
+            self.save()
+        # if response is "CANCEL" (the button "Cancel" has been clicked)
+        elif response_id == Gtk.ResponseType.CANCEL:
+            print("cancelled: FileChooserAction.SAVE")
+        # destroy the FileChooserDialog
+        dialog.destroy()
+
 
 
 class SearchBar(Gtk.HBox):

@@ -242,4 +242,4 @@ class PDFPopupWindow(Gtk.EventBox):
         self.pdf.pdf.save()
 
     def bp_save_as(self, widget, event):
-        self.pdf.pdf.save()
+        self.pdf.pdf.save_as()
