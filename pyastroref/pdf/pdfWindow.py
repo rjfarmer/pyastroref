@@ -179,38 +179,11 @@ class _Pdf(object):
 
 
     def save_as(self):
-        save_dialog = Gtk.FileChooserDialog(title="Save as", transient_for=None,
-                                            action=Gtk.FileChooserAction.SAVE)
+        utils.save_as(self._filename, self.save_with_filename)
 
-        save_dialog.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
-                                            Gtk.STOCK_SAVE, Gtk.ResponseType.ACCEPT)
-        # the dialog will present a confirmation dialog if the user types a file name that
-        # already exists
-        save_dialog.set_do_overwrite_confirmation(True)
-        # dialog always on top of the textview window
-        save_dialog.set_modal(True)
-        f = Gio.File.new_for_path(self._filename)
-        save_dialog.set_file(f)
-        # connect the dialog to the callback function save_response_cb()
-        save_dialog.connect("response", self.save_response_cb)
-        # show the dialog
-        save_dialog.show()
-
-    def save_response_cb(self, dialog, response_id):
-        save_dialog = dialog
-        # if response is "ACCEPT" (the button "Save" has been clicked)
-        if response_id == Gtk.ResponseType.ACCEPT:
-            # self.file is the currently selected file
-            f = save_dialog.get_file()
-            self._filename = f.get_path()
-            # save to file (see below)
-            self.save()
-        # if response is "CANCEL" (the button "Cancel" has been clicked)
-        elif response_id == Gtk.ResponseType.CANCEL:
-            print("cancelled: FileChooserAction.SAVE")
-        # destroy the FileChooserDialog
-        dialog.destroy()
-
+    def save_with_filename(self, filename):
+        self._filename = filename
+        self.save()
 
 
 class SearchBar(Gtk.HBox):
