@@ -152,7 +152,6 @@ class libraries(object):
     def items(self):
         return self.data.items()
 
-
 class library(object):
     '''
     An instance of a single ADS library
@@ -160,6 +159,7 @@ class library(object):
     def __init__(self, token, libraryid):
         self.token = token
         self.libraryid = libraryid
+        self.docs = []
         self.update()
 
     def url(self):
@@ -253,3 +253,12 @@ class library(object):
     # Just makes sure we have a list of strings
     def _ensure_list(self, s):
         return s if isinstance(s, list) else list(s)
+
+    def __hash__(self):
+        return hash(self.libraryid)
+
+    def __eq__(self, value):
+        if isinstance(value, library):
+            if value.libraryid == self.libraryid:
+                return True
+        return False

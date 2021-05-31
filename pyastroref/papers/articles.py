@@ -84,7 +84,6 @@ class journal(object):
         return self._data.items()
 
 
-
 class article(object):
     '''
     A single article that is given by either a bibcode, arxic id, or doi.
@@ -294,6 +293,15 @@ class article(object):
 
     def __reduce__(self):
         return (article, (self.token,self.bibcode))
+
+    def __hash__(self):
+        return hash(self.bibcode)
+
+    def __eq__(self, value):
+        if isinstance(value, article):
+            if value.bibcode == self.bibcode:
+                return True
+        return False
 
 
 class search(object):
