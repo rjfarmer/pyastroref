@@ -13,8 +13,8 @@ from ..papers import collection
 from ..papers import arxiv
 
 adsData = ads.adsabs()
-adsSearch = ads.articles.search(adsData.token)
-adsJournals = collection.Collection(adsData.token)
+adsSearch = ads.articles.search(adsData)
+adsJournals = collection.Collection(adsData)
 
 
 class JournalWindow(Gtk.Window):

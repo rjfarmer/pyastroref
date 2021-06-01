@@ -13,14 +13,14 @@ class libraries(object):
     '''
     This is a collection of ADS libraries that supports iteration
     '''
-    def __init__(self, token):
-        self.token = token
+    def __init__(self, adsdata):
+        self.adsdata = adsdata
         self.data = None
         
     def update(self):
         data = requests.get(
                                 utils.urls['libraries'],
-                                auth=utils.BearerAuth(self.token)
+                                auth=utils.BearerAuth(self.adsdata.token)
                             ).json()
 
         self.data = {}
@@ -45,19 +45,19 @@ class libraries(object):
         if self.data is None:
             self.update()
         if key in self.data.keys():
-            return library(self.token,self.data[key]['id'])
+            return library(self.adsdata,self.data[key]['id'])
 
     def __getattr__(self, key):
         if self.data is None:
             self.update()
         if key in self.data.keys():
-            return library(self.token,self.data[key]['id'])
+            return library(self.adsdata,self.data[key]['id'])
 
     def get(self, name):
         '''
         Fetches library
         '''
-        return library(self.token,self.data[name]['id'])
+        return library(self.adsdata,self.data[name]['id'])
 
     def add(self, name, description='', public=False):
         '''
@@ -70,7 +70,7 @@ class libraries(object):
             }
         r = requests.post(
                             utils.urls['libraries'],
-                            auth=utils.BearerAuth(self.token),
+                            auth=utils.BearerAuth(self.adsdata.token),
                             headers={'Content-Type':'application/json'},
                             json = data
                         ).json()
@@ -90,7 +90,7 @@ class libraries(object):
 
         requests.delete(
                             utils.urls['documents']+'/'+lid,
-                            auth=utils.BearerAuth(self.token)
+                            auth=utils.BearerAuth(self.adsdata.token)
                         )
         self.data.pop(name,None)
 
@@ -116,7 +116,7 @@ class libraries(object):
 
         requests.put(
                         utils.urls['documents']+'/'+lid,
-                        auth=utils.BearerAuth(self.token),
+                        auth=utils.BearerAuth(self.adsdata.token),
                         headers={'Content-Type':'application/json'},
                         json = data
                     )
@@ -156,8 +156,8 @@ class library(object):
     '''
     An instance of a single ADS library
     '''
-    def __init__(self, token, libraryid):
-        self.token = token
+    def __init__(self, adsdata, libraryid):
+        self.adsdata = adsdata
         self.libraryid = libraryid
         self.docs = []
         self.update()
@@ -173,7 +173,7 @@ class library(object):
 
         data = requests.get(
                             self.url(),
-                            auth=utils.BearerAuth(self.token)
+                            auth=utils.BearerAuth(self.adsdata.token)
                         ).json()
         self.docs.extend(data['documents'])
 
@@ -182,7 +182,7 @@ class library(object):
             num_left = total_num - len(self.docs)
             data = requests.get(
                                 self.url()+'?start='+str(len(self.docs))+'&rows='+str(num_left),
-                                auth=utils.BearerAuth(self.token)
+                                auth=utils.BearerAuth(self.adsdata.token)
                             ).json()
             self.docs.extend(data['documents'])
 
@@ -198,7 +198,7 @@ class library(object):
 
     def __getitem__(self,key):
         if key in self.docs:
-            return articles.article(self.token,key)
+            return articles.article(self.adsdata,key)
 
     def __getattr__(self, key):
         if key in self.metadata.keys():
@@ -208,7 +208,7 @@ class library(object):
         return self.metadata.keys() + ['keys','add','remove','get','update']
 
     def get(self, bibcode):
-        return articles.article(self.token,bibcode=bibcode)
+        return articles.article(self.adsdata,bibcode=bibcode)
 
     def add(self, bibcode):
         '''
@@ -217,7 +217,7 @@ class library(object):
         data = {'bibcode':self._ensure_list(bibcode),"action":"add"}
         r = requests.post(
                             self.url_docs(),
-                            auth=utils.BearerAuth(self.token),
+                            auth=utils.BearerAuth(self.adsdata.token),
                             headers={'Content-Type':'application/json'},
                             json = data
                         ).json()
@@ -232,7 +232,7 @@ class library(object):
         data = {'bibcode':self._ensure_list(bibcode),"action":"remove"}
         r = requests.post(
                             self.url_docs(),
-                            auth=utils.BearerAuth(self.token),
+                            auth=utils.BearerAuth(self.adsdata.token),
                             headers={'Content-Type':'application/json'},
                             json = data
                         ).json()

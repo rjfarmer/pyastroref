@@ -43,15 +43,15 @@ class journal(object):
 
     We defer as much as possible actualy accessing data untill its needed
     '''
-    def __init__(self, token, bibcodes, data=None):
-        self.token = token
+    def __init__(self, adsdata, bibcodes, data=None):
+        self.adsdata = adsdata
         self._set_bibcodes = set(bibcodes)   
         self._bibcodes = bibcodes    
         self._data = {}
 
         if data is not None:
             for i in data:
-                self._data[i['bibcode']] = article(self.token, i['bibcode'], data=i)
+                self._data[i['bibcode']] = article(self.adsdata, i['bibcode'], data=i)
 
     def __len__(self):
         return len(self._set_bibcodes)
@@ -62,7 +62,7 @@ class journal(object):
     def __getitem__(self, key):
         if key in self._set_bibcodes:
             if key not in self._data:
-                self._data[key] = article(self.token,bibcode=key)
+                self._data[key] = article(self.adsdata,bibcode=key)
             return self._data[key]
         else:
             return self.__getitem__(self._bibcodes[key])
@@ -94,8 +94,8 @@ class article(object):
     without hitting the ADS api limits.
     '''
 
-    def __init__(self, token, bibcode=None, data=None):
-        self.token = token
+    def __init__(self, adsdata, bibcode=None, data=None):
+        self.adsdata = adsdata
         self._bibcode = bibcode
         self._data = None
         self._citations=None
@@ -108,7 +108,7 @@ class article(object):
     
     def search(self,force=False):
         if self._data is None or force:
-            self._data = search(self.token).bibcode_single(self.bibcode)
+            self._data = self.adsdata.search.bibcode_single(self.bibcode)
             
     @property
     def bibcode(self):
@@ -260,18 +260,18 @@ class article(object):
 
     def citations(self):
         if self._citations is None:
-            self._citations = search(self.token).search('citations(bibcode:"'+self._bibcode+'")')
+            self._citations = self.adsdata.search('citations(bibcode:"'+self._bibcode+'")')
         return self._citations
 
     def references(self):
         if self._references is None:
-            self._references = search(self.token).search('references(bibcode:"'+self._bibcode+'")')
+            self._references = self.adsdata.search('references(bibcode:"'+self._bibcode+'")')
         return self._references 
 
     def bibtex(self,filename=None,text=True):
         data = {'bibcode':[self.bibcode]}
         r = requests.post(utils.urls['bibtex'],
-                auth=utils.BearerAuth(self.token),
+                auth=utils.BearerAuth(self.adsdata.token),
                 headers={'Content-Type':'application/json'},
                 json = data).json()
 
@@ -292,7 +292,7 @@ class article(object):
         return self.name
 
     def __reduce__(self):
-        return (article, (self.token,self.bibcode))
+        return (article, (self.adsdata,self.bibcode))
 
     def __hash__(self):
         return hash(self.bibcode)
@@ -305,8 +305,8 @@ class article(object):
 
 
 class search(object):
-    def __init__(self, token):
-        self.token = token
+    def __init__(self, adsdata):
+        self.adsdata = adsdata
 
     def search(self, query):
         if not len(query):
@@ -321,7 +321,7 @@ class search(object):
         
         print(query)
         bibs, data = self._query(query)
-        return journal(self.token,bibs,data=data)
+        return journal(self.adsdata,bibs,data=data)
 
     def make_query(self, identifer):
         q=''
@@ -381,7 +381,7 @@ class search(object):
     def _query_ads(self, query, start=0):
         r = requests.get(
                         utils.urls['search'],
-                        auth=utils.BearerAuth(self.token),
+                        auth=utils.BearerAuth(self.adsdata.token),
                         params={
                             'q':query,
                             'fl':_fields,
@@ -487,7 +487,7 @@ class search(object):
             alldata.extend(data)
             allbibs.extend(bibs)
 
-        return journal(self.token,bibcodes=allbibs,data=alldata)
+        return journal(self.adsdata,bibcodes=allbibs,data=alldata)
 
 
     def chunked_join(self, data,prefix='',joiner='',nmax=20):

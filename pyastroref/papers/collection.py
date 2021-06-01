@@ -28,8 +28,8 @@ class Collection(object):
     _file_all = Path(utils.settings['ALL_JOURNALS_LIST'])
     _file = Path(utils.settings['JOURNALS_LIST'])
 
-    def __init__(self, token):
-        self.token = token
+    def __init__(self, adsdata):
+        self.adsdata = adsdata
         self.all_journals = {}
         self._results = {}
 
@@ -123,6 +123,6 @@ class Collection(object):
 
             query = 'bibstem:"'+name+'" AND '+pubdata
 
-            self._results[name] = articles.search(self.token).search(query)
+            self._results[name] = articles.search(self.adsdata).search(query)
 
         return self._results[name]

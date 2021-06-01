@@ -15,7 +15,7 @@ from ..papers import adsabs as ads
 from ..papers import articles
 
 adsData = ads.adsabs()
-adsSearch = ads.articles.search(adsData.token)
+adsSearch = ads.articles.search(adsData)
 
 class MainWindow(Gtk.Window):
     def __init__(self):

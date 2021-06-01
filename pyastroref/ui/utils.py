@@ -39,7 +39,7 @@ def orcid_error_window():
         text="ORCID not set",
     )
     dialog.format_secondary_text(
-        "Please set upi orcid before doing a orcid search"
+        "Please set up your orcid before doing a orcid search"
     )
     dialog.run()
 
@@ -91,7 +91,6 @@ def save_response_cb(dialog, response_id, save_func):
     save_dialog = dialog
     # if response is "ACCEPT" (the button "Save" has been clicked)
     if response_id == Gtk.ResponseType.ACCEPT:
-        # self.file is the currently selected file
         f = save_dialog.get_file().get_path()
         # save to file (see below)
         save_func(f)

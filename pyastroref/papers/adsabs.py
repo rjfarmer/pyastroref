@@ -53,7 +53,7 @@ class adsabs(object):
     def __getattr__(self, key):
         if key == 'libraries':
             if self._libs is None:
-                self._libs  = libraries.libraries(self.token)
+                self._libs  = libraries.libraries(self)
             return self._libs
 
 
@@ -61,7 +61,7 @@ class adsabs(object):
         '''
         Returns an article given its bibcode
         '''
-        return articles.article(self.token,bibcode=bibcode)
+        return articles.article(self,bibcode=bibcode)
 
     def search(self, query):
         '''
@@ -69,6 +69,6 @@ class adsabs(object):
 
         Returns a journal (list of articles)
         '''
-        s = articles.search(self.token)
+        s = articles.search(self)
         return s.search(query)
 

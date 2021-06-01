@@ -14,7 +14,7 @@ from ..papers import adsabs as ads
 from ..papers import articles
 
 adsData = ads.adsabs()
-adsSearch = ads.articles.search(adsData.token)
+adsSearch = ads.articles.search(adsData)
 
 class ShowJournal(Gtk.VBox):
     cols = ["Title", "First Author", "Year", "Authors", "Journal","References", "Citations", 

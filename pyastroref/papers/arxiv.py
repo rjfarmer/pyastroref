@@ -10,10 +10,10 @@ import feedparser
 from . import articles
 
 class arxivrss(object):
-    def __init__(self, token):
+    def __init__(self, adsdata):
         self.url = 'http://export.arxiv.org/rss/astro-ph'
         self._feed = None
-        self.token = token
+        self.adsdata = adsdata
         self._data = []
 
     def articles(self):
@@ -26,6 +26,6 @@ class arxivrss(object):
             thismonth = str(today.year-2000)+str(today.month).zfill(2)
             arxiv_ids = [i for i in arxiv_ids if i.startswith(thismonth)]
 
-            self._data = articles.search(self.token).arxiv_multi(arxiv_ids)
+            self._data = articles.search(self.adsdata).arxiv_multi(arxiv_ids)
 
         return self._data

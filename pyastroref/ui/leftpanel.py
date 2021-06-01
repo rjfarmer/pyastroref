@@ -17,8 +17,8 @@ from ..papers import arxiv
 from . import collections
 
 adsData = ads.adsabs()
-adsSearch = ads.articles.search(adsData.token)
-adsJournals = collection.Collection(adsData.token)
+adsSearch = ads.articles.search(adsData)
+adsJournals = collection.Collection(adsData)
 
 
 class LeftPanel(object):
@@ -86,7 +86,7 @@ class LeftPanel(object):
                     return []
                 target = func
             elif row == self.rows['Arxiv']['idx']:
-                target = arxiv.arxivrss(adsData.token).articles
+                target = arxiv.arxivrss(adsData).articles
             elif row == self.rows['ORCID']['idx']:
                 if adsData.orcid is None:
                     utils.orcid_error_window()
