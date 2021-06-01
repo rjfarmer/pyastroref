@@ -8,7 +8,7 @@ An astronomy focused reference manager which integrates with adsabs and the arxi
 ## Installation
 
 
-Follow the instructions to install  gtk and pygobject from https://pygobject.readthedocs.io/en/latest/getting_started.html
+Follow the instructions to install gtk and pygobject from https://pygobject.readthedocs.io/en/latest/getting_started.html
 
 Install dependices:
 
@@ -26,6 +26,10 @@ And run
 ```
 pyastroref
 ```
+
+## Documentation
+
+Documentation can be found at https://pyastroref.readthedocs.io/en/latest/
 
 
 ## ADS Key
