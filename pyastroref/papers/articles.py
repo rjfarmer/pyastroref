@@ -352,7 +352,7 @@ class search(object):
         return res
 
 
-    def _query(self, query):
+    def _query(self, query, max_rows=250):
 
         start = 0
         results = []
@@ -372,7 +372,10 @@ class search(object):
             if num_got >= num_found:
                 break
 
-            start = len(results)
+            if num_got > max_rows:
+                break
+
+            start = num_got
 
         bibcodes = [i['bibcode'] for i in results]
 
