@@ -1,4 +1,6 @@
 
+[![Documentation Status](https://readthedocs.org/projects/pyastroref/badge/?version=latest)](https://pyastroref.readthedocs.io/en/latest/?badge=latest)
+
 # pyAstroRef
 
 
