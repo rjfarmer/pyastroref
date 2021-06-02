@@ -111,7 +111,7 @@ class _Pdf(object):
         print(keyval_name)
         if ctrl:
             if keyval_name == 'c':
-                utils.clipboard(self.highlighted_text())
+                self.copy_text()
                 return
             elif keyval_name == 'h':
                 self.highlight_text()
@@ -148,6 +148,10 @@ class _Pdf(object):
             self.end_page()
             return
 
+
+    def copy_text(self):
+        text = self.highlighted_text().replace('\n',' ')
+        utils.clipboard(text)
     def print(self):
         print_op = Gtk.PrintOperation()
         print_op.connect("begin-print", self.begin_print)
