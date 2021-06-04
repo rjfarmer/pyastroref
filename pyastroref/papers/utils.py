@@ -64,3 +64,7 @@ class BearerAuth(requests.auth.AuthBase):
     def __call__(self, r):
         r.headers["authorization"] = "Bearer " + str(self.token)
         return r
+
+
+class FileDonwnloadFailed(Exception):
+    pass

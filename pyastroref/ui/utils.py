@@ -46,6 +46,23 @@ def orcid_error_window():
     dialog.destroy()
 
 
+def file_error_window(bibcode):
+    dialog = Gtk.MessageDialog(
+        flags=0,
+        message_type=Gtk.MessageType.ERROR,
+        buttons=Gtk.ButtonsType.OK,
+        text="Could not download file",
+    )
+    dialog.format_secondary_text(
+        "Could not download "+str(bibcode)
+    )
+    dialog.run()
+
+    dialog.destroy()
+
+
+
+
 def set_dm(mode=None):
     if mode is None:
         mode = utils.read_key_file(utils.settings['DARK_MODE_FILE'])

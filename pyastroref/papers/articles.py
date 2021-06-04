@@ -237,6 +237,7 @@ class article(object):
         if os.path.exists(filename):
             return
 
+        got_file=False
         for i in strs:
             url = utils.urls['pdfs']+str(self.bibcode)+i
 
@@ -253,10 +254,11 @@ class article(object):
             with open(filename,'wb') as f:
                 f.write(r.content)
                 self.which_file = i
+                got_file=True
                 break
 
         if not os.path.exists(filename):
-            raise ValueError("Couldn't download file")
+            raise utils.FileDonwnloadFailed("Couldn't download file")
 
     def citations(self):
         if self._citations is None:
