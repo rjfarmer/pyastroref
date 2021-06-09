@@ -2,6 +2,8 @@
 
 import os
 import sys
+import random
+import string
 import threading
 
 import gi
@@ -10,6 +12,7 @@ from gi.repository import GLib, Gtk, GObject, Gdk, Gio
 
 from ..papers import utils
 
+_statusbar = Gtk.Statusbar()
 
 def clipboard(data):
     clip = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD)
@@ -59,9 +62,6 @@ def file_error_window(bibcode):
     dialog.run()
 
     dialog.destroy()
-
-
-
 
 def set_dm(mode=None):
     if mode is None:
@@ -116,3 +116,16 @@ def save_response_cb(dialog, response_id, save_func):
         print("cancelled: FileChooserAction.SAVE")
     # destroy the FileChooserDialog
     dialog.destroy()
+
+def show_status(message,contextid=None):
+    if contextid is None:
+        contextid = random.randint(1,100000000)
+
+    msg_id = _statusbar.push(contextid, message)
+
+    def func():
+        _statusbar.remove(contextid, msg_id)
+        return False # Run once
+
+    #Timeout message
+    GLib.timeout_add_seconds(5,func)

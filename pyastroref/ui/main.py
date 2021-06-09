@@ -91,10 +91,14 @@ class MainWindow(Gtk.Window):
     def setup_panels(self):
         self.panels = Gtk.HPaned()
 
+        self.rp_box = Gtk.VBox()
+
         self.right_panel = Gtk.Notebook(scrollable=True)
 
         self.right_panel.set_vexpand(True)
         self.right_panel.set_hexpand(True)
+
+        self.rp_box.pack_start(self.right_panel,True,True,0)
 
         self.left_panel = leftpanel.LeftPanel(self.right_panel)
         def func():
@@ -104,7 +108,9 @@ class MainWindow(Gtk.Window):
         self.right_panel.show_all()
 
         self.panels.pack1(self.left_panel.treeview,False,False)
-        self.panels.pack2(self.right_panel,True,True)
+        self.panels.pack2(self.rp_box,True,True)
+
+        self.rp_box.pack_start(utils._statusbar,False,False,0)
 
 
     def setup_grid(self):

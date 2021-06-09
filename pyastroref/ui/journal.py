@@ -105,6 +105,7 @@ class ShowJournal(Gtk.VBox):
             ])
 
         self.journal = journal
+        utils.show_status('Showing {} articles'.format(len(self.journal)))
 
 
 
@@ -192,6 +193,7 @@ class ShowJournal(Gtk.VBox):
         if event.button == Gdk.BUTTON_PRIMARY: # left click
             if title == 'Bibtex':
                 utils.clipboard(article.bibtex())
+                utils.show_status('Bibtex downloaded for {}'.format(article.bibcode))
             elif title == "First Author":
                 def func():
                     return adsSearch.first_author(article.first_author)
@@ -221,6 +223,7 @@ class ShowJournal(Gtk.VBox):
                 journal.append(paper)
 
         self.make_liststore(journal)
+        utils.show_status('Showing {} out of {}'.format(len(journal),len(self._journal)))
 
 
 class JournalPopupWindow(Gtk.EventBox):
@@ -317,6 +320,7 @@ class JournalPopupWindow(Gtk.EventBox):
 
     def bp_bib(self, widget, event):
         utils.clipboard(self.data.bibtex())
+        utils.show_status('Bibtex downloaded for {}'.format(self.data.bibcode))
         return True
 
     def bp_add_lib(self, widget, event):
