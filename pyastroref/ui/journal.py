@@ -191,7 +191,7 @@ class ShowJournal(Gtk.VBox):
         title = col.get_title()
         if event.button == Gdk.BUTTON_PRIMARY: # left click
             if title == 'Bibtex':
-                utils.clipboard(article.bibtex(text=True))
+                utils.clipboard(article.bibtex())
             elif title == "First Author":
                 def func():
                     return adsSearch.first_author(article.first_author)
@@ -316,7 +316,7 @@ class JournalPopupWindow(Gtk.EventBox):
 
 
     def bp_bib(self, widget, event):
-        utils.clipboard(self.data.bibtex(text=True))
+        utils.clipboard(self.data.bibtex())
         return True
 
     def bp_add_lib(self, widget, event):

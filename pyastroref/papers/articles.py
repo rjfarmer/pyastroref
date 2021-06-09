@@ -13,7 +13,7 @@ from . import utils
 
 
 # Default ADS search fields
-_fields = ['bibcode','title','author','year','abstract','year',
+_fields = ['bibcode','title','author','year','abstract',
             'pubdate','bibstem','alternate_bibcode','citation_count','identifier',
             'reference'
             ]
@@ -246,7 +246,7 @@ class article(object):
             try:
                 r = requests.get(url, allow_redirects=True,headers=headers)
             except:
-                raise ValueError("Couldn't download file")
+                continue
 
             if r.content.startswith(b'<!DOCTYPE html'): 
                 continue
@@ -270,7 +270,7 @@ class article(object):
             self._references = self.adsdata.search('references(bibcode:"'+self._bibcode+'")')
         return self._references 
 
-    def bibtex(self,filename=None,text=True):
+    def bibtex(self):
         data = {'bibcode':[self.bibcode]}
         r = requests.post(utils.urls['bibtex'],
                 auth=utils.BearerAuth(self.adsdata.token),
@@ -280,15 +280,7 @@ class article(object):
         if 'error' in r:
             raise ValueError(r['error'])
 
-        if filename is not None:
-            with open(filename,'w') as f:
-                f.write(r['export'])
-
-        if text:
-            return r['export']
-        else:
-            bp = BibTexParser(interpolate_strings=False)
-            return bibtexparser.loads(r['export'],parser=bp)
+        return r['export']
 
     def __str__(self):
         return self.name

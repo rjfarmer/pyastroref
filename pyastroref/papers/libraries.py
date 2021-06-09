@@ -15,49 +15,49 @@ class libraries(object):
     '''
     def __init__(self, adsdata):
         self.adsdata = adsdata
-        self.data = None
+        self._data = None
         
     def update(self):
         data = requests.get(
-                                utils.urls['libraries'],
-                                auth=utils.BearerAuth(self.adsdata.token)
+                            utils.urls['libraries'],
+                            auth=utils.BearerAuth(self.adsdata.token)
                             ).json()
 
-        self.data = {}
+        self._data = {}
         if 'libraries' in data:
             data = data['libraries']
         else:
             return
 
         # Repack data from list of dicts to dict of dicts
-        self.data = {}
+        self._data = {}
         for value in data:
-            self.data[value['name']] = value
+            self._data[value['name']] = value
 
     def names(self):
-        if self.data is None:
+        if self._data is None:
             self.update()
         x = list(self.keys())
         x.sort()
         return x
 
     def __getitem__(self, key):
-        if self.data is None:
+        if self._data is None:
             self.update()
-        if key in self.data.keys():
-            return library(self.adsdata,self.data[key]['id'])
+        if key in self._data.keys():
+            return library(self.adsdata,self._data[key]['id'])
 
     def __getattr__(self, key):
-        if self.data is None:
+        if self._data is None:
             self.update()
-        if key in self.data.keys():
-            return library(self.adsdata,self.data[key]['id'])
+        if key in self._data.keys():
+            return library(self.adsdata,self._data[key]['id'])
 
     def get(self, name):
         '''
         Fetches library
         '''
-        return library(self.adsdata,self.data[name]['id'])
+        return library(self.adsdata,self._data[name]['id'])
 
     def add(self, name, description='', public=False):
         '''
@@ -83,26 +83,26 @@ class libraries(object):
         '''
         Deletes library
         '''
-        if name not in self.data.keys():
+        if name not in self._data.keys():
             raise KeyError('Library does not exit')
 
-        lid = self.data[name]['id']
+        lid = self._data[name]['id']
 
         requests.delete(
                             utils.urls['documents']+'/'+lid,
                             auth=utils.BearerAuth(self.adsdata.token)
                         )
-        self.data.pop(name,None)
+        self._data.pop(name,None)
 
 
     def edit(self,name, name_new=None,description=None,public=False):
         '''
         Edit metadata of a given library
         '''
-        if name not in self.data.keys():
+        if name not in self._data.keys():
             raise KeyError('Library does not exit')
 
-        lid = self.data[name]['id']
+        lid = self._data[name]['id']
 
         if name_new is not None:
             if len(name):
@@ -123,34 +123,34 @@ class libraries(object):
 
 
     def keys(self):
-        if self.data is None:
+        if self._data is None:
             self.update()
-        return self.data.keys()
+        return self._data.keys()
 
     def __len__(self):
-        if self.data is not None:
-            return len(self.data)
+        if self._data is not None:
+            return len(self._data)
         else:
             return 0
 
     def __contains__(self, key):
-        if self.data is not None:
-            return key in self.data
+        if self._data is not None:
+            return key in self._data
         else:
             return False
 
     def __iter__(self):
-        for i in self.data:
+        for i in self._data:
             yield self.get(i)
 
     def __dir__(self):
         return ['reset','add','get','names','removes','update'] + list(self.keys())
 
     def values(self):
-        return self.data.values()
+        return self._data.values()
 
     def items(self):
-        return self.data.items()
+        return self._data.items()
 
 class library(object):
     '''
@@ -159,7 +159,7 @@ class library(object):
     def __init__(self, adsdata, libraryid):
         self.adsdata = adsdata
         self.libraryid = libraryid
-        self.docs = []
+        self._data = []
         self.update()
 
     def url(self):
@@ -169,35 +169,35 @@ class library(object):
         return utils.urls['documents'] + '/' + self.libraryid 
 
     def update(self):
-        self.docs = []
+        self._data = []
 
         data = requests.get(
                             self.url(),
                             auth=utils.BearerAuth(self.adsdata.token)
                         ).json()
-        self.docs.extend(data['documents'])
+        self._data.extend(data['documents'])
 
         total_num = int(data['metadata']['num_documents'])
-        if len(self.docs) < total_num:
-            num_left = total_num - len(self.docs)
+        if len(self._data) < total_num:
+            num_left = total_num - len(self._data)
             data = requests.get(
-                                self.url()+'?start='+str(len(self.docs))+'&rows='+str(num_left),
+                                self.url()+'?start='+str(len(self._data))+'&rows='+str(num_left),
                                 auth=utils.BearerAuth(self.adsdata.token)
                             ).json()
-            self.docs.extend(data['documents'])
+            self._data.extend(data['documents'])
 
         self.metadata = data['metadata']
         self.name = self.metadata['name']
 
     def keys(self):
-        return self.docs
+        return self._data
 
     @property
     def description(self):
         return self.metadata['description']
 
     def __getitem__(self,key):
-        if key in self.docs:
+        if key in self._data:
             return articles.article(self.adsdata,key)
 
     def __getattr__(self, key):
@@ -241,13 +241,13 @@ class library(object):
             raise ValueError(r['message'])
 
     def __len__(self):
-        return len(self.docs)
+        return len(self._data)
 
     def __contains__(self, key):
-        return key in self.docs
+        return key in self._data
 
     def __iter__(self):
-        for i in self.docs:
+        for i in self._data:
             yield self.get(i)
 
     # Just makes sure we have a list of strings

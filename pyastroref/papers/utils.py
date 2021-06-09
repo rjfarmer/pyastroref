@@ -9,9 +9,6 @@ from appdirs import AppDirs
 
 dirs = AppDirs("pyAstroRef")
 
-os.makedirs(dirs.user_config_dir,exist_ok=True)
-os.makedirs(os.path.join(Path.home(),'.ads'),exist_ok=True)
-
 settings = {
     # Where to store ADS dev key, leave in ~/.ads to keep consistency with the ads package
     'TOKEN_FILE':os.path.join(Path.home(),'.ads','dev_key'),

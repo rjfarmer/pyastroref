@@ -31,7 +31,7 @@ class Collection(object):
     def __init__(self, adsdata):
         self.adsdata = adsdata
         self.all_journals = {}
-        self._results = {}
+        self._data = {}
 
         self.load_defaults()
 
@@ -111,7 +111,7 @@ class Collection(object):
             if value == name:
                 break
 
-        if name not in self._results:
+        if name not in self._data:
             today = datetime.date.today()
             monthago = today - datetime.timedelta(days=31)
 
@@ -123,6 +123,6 @@ class Collection(object):
 
             query = 'bibstem:"'+name+'" AND '+pubdata
 
-            self._results[name] = articles.search(self.adsdata).search(query)
+            self._data[name] = articles.search(self.adsdata).search(query)
 
-        return self._results[name]
+        return self._data[name]

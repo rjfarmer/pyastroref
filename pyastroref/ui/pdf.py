@@ -217,7 +217,7 @@ class PDFPopupWindow(Gtk.EventBox):
 
 
     def bp_bib(self, widget, event):
-        utils.clipboard(self.data.bibtex(text=True))
+        utils.clipboard(self.data.bibtex())
         return True
 
     def bp_cites(self, widget, event):
