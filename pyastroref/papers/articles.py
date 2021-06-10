@@ -313,7 +313,6 @@ class search(object):
                 query = self.make_query(res)
                 break
         
-        print(query)
         bibs, data = self._query(query)
         return journal(self.adsdata,bibs,data=data)
 
