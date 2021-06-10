@@ -41,10 +41,6 @@ class ShowPDF(Gtk.VBox):
 
         utils.thread(self.download_and_show)
 
-        if not os.path.exists(self._filename):
-            utils.file_error_window(self.data.bibcode)
-            return 
-
 
     def download_and_show(self):
         GLib.idle_add(self.header.spin_on)
@@ -55,6 +51,7 @@ class ShowPDF(Gtk.VBox):
 
         if not os.path.exists(self._filename):
             GLib.idle_add(self.header.spin_off)
+            utils.file_error_window(self.data.bibcode)
             return 
 
         self.pdf = pdfWindow.pdfWin(self._filename)
