@@ -115,6 +115,17 @@ class article(object):
         return self._bibcode
 
     def __gettattr__(self, key):
+        if self._data is None:
+            self.search()
+
+        if self._data is not None:
+            if key in self._data:
+                return self._data[key]
+
+    def __getitem__(self, key):
+        if self._data is None:
+            self.search()
+    
         if self._data is not None:
             if key in self._data:
                 return self._data[key]
@@ -132,16 +143,14 @@ class article(object):
         return  '; '.join(self._data['author'])
 
     @property
+    def author(self):
+        return self.authors
+
+    @property
     def first_author(self):
         if self._data is None:
             self.search()
         return self._data['author'][0]
-
-    @property
-    def pubdate(self):
-        if self._data is None:
-            self.search()
-        return self._data['pubdate']
 
     @property
     def journal(self):
@@ -306,44 +315,11 @@ class search(object):
         if not len(query):
             return []
 
-        # Check if url?
-        for func in [self._process_url,self._process_bibtex]:
-            res = func(query)
-            if len(res):
-                query = self.make_query(res)
-                break
+        # Parse search function
+        q = parseSearch(query)
         
-        bibs, data = self._query(query)
+        bibs, data = self._query(q.query())
         return journal(self.adsdata,bibs,data=data)
-
-    def make_query(self, identifer):
-        q=''
-        if 'bibcode' in identifer:
-            q = 'bibcode:'+identifer['bibcode']
-        elif 'arxiv' in identifer:
-            q = 'arxiv:'+identifer['arxiv']
-        elif 'doi' in identifer:
-            q = 'doi:'+identifer['doi']
-
-        return q
-
-    def _process_bibtex(self, query):
-        res = {}
-        if query.startswith('@'):
-            bp = BibTexParser(interpolate_strings=False)
-            bib = bibtexparser.loads(query,filter=bp)
-            bib = bib.entries[0]
-            #What is in the bib?
-            if 'adsurl' in bib:
-                res['bibcode'] = bib['adsurl'].split('/')[-1]
-            elif 'eprint' in bib:
-                res['arxiv'] = bib['eprint']
-            elif 'doi' in bib:
-                res['doi'] = bib['doi']
-            else:
-                raise ValueError("Don't understand this bitex")
-        return res
-
 
     def _query(self, query, max_rows=250):
 
@@ -412,11 +388,88 @@ class search(object):
     def first_author(self, author):
         return self.search('author:"^'+author+'"')
 
+    def chunked_search(self, ids, prefix):
+        # Break up data into chunks to process otherwise we max at 50 entries:
+        query = self.chunked_join(ids,prefix=prefix,joiner=' OR ')
+        alldata = []
+        allbibs=[]
+        for i in query:
+            bibs, data = self._query(i)
+            alldata.extend(data)
+            allbibs.extend(bibs)
 
-    def _process_url(self, url):
+        return journal(self.adsdata,bibcodes=allbibs,data=alldata)
+
+
+    def chunked_join(self, data,prefix='',joiner='',nmax=20):
+        '''
+        Breaks data into chunks of maximum size nmax
+
+        Each element of the chunked data is prefixed with prefix and joined back together with joiner
+
+        data = ['1','2','3','4']
+        _chunked_join(data,prefix='bibcode:','joiner=' OR ',nmax=2)
+
+        ['bibcode:1 OR bibcode:2','bibcode:3 OR bibcode:4']
+
+        Handy to break up large queries that might exceed search limits (seems to be a max of 50
+        bibcodes or arxiv ids at a time).
+        Where prefix is the ads term ('bibcode:' or 'indentifier:')
+        and joiner is logical or ' OR '
+
+        '''
+        res = []
+
+        for pos in range(0, len(data), nmax):
+            x = [prefix+j for j in data[pos:pos + nmax]]
+            res.append(joiner.join(x))
+
+        return res
+
+
+class SearchError(Exception):
+    pass
+
+
+
+
+class parseSearch(object):
+    def __init__(self, query):
+        self._query = query
+
+
+    def query(self):
+        for search in dir(self):
+            if search.startswith('search_'):
+                q = getattr(self,search)()
+                #print('called',q,search)
+                if q:
+                    break
+
+        if not q:
+            q = self._query
+
+        return q
+
+
+    def make_query(self, identifer):
+        q=''
+        if 'bibcode' in identifer:
+            q = 'bibcode:'+identifer['bibcode']
+        elif 'arxiv' in identifer:
+            q = 'arxiv:'+identifer['arxiv']
+        elif 'doi' in identifer:
+            q = 'doi:'+identifer['doi']
+
+        return q
+
+
+
+    def search_url(self):
         '''
         Given an URL attempts to work out the bibcode, arxiv id, or doi for it
         '''
+        url  = self._query
 
         res = {}
         headers = {'user-agent': 'Mozilla /5.0 (Windows NT 10.0; Win64; x64)'}
@@ -470,47 +523,38 @@ class search(object):
             doi = '/'.join(url.split('/')[-2:])
             res['doi'] = doi
         
-        return res
+        if len(res):
+            return self.make_query(res)
+        else:
+            return False
 
+    def search_bibtex(self):
+        res = {}
+        if self._query.startswith('@'):
+            bp = BibTexParser(interpolate_strings=False)
+            bib = bibtexparser.loads(self._query,filter=bp)
+            bib = bib.entries[0]
+            #What is in the bib?
+            if 'adsurl' in bib:
+                res['bibcode'] = bib['adsurl'].split('/')[-1]
+            elif 'eprint' in bib:
+                res['arxiv'] = bib['eprint']
+            elif 'doi' in bib:
+                res['doi'] = bib['doi']
+            else:
+                raise ValueError("Don't understand this bitex")
+        
+        if len(res):
+            return self.make_query(res)
+        else:
+            return False
 
-    def chunked_search(self, ids, prefix):
-        # Break up data into chunks to process otherwise we max at 50 entries:
-        query = self.chunked_join(ids,prefix=prefix,joiner=' OR ')
-        alldata = []
-        allbibs=[]
-        for i in query:
-            bibs, data = self._query(i)
-            alldata.extend(data)
-            allbibs.extend(bibs)
-
-        return journal(self.adsdata,bibcodes=allbibs,data=alldata)
-
-
-    def chunked_join(self, data,prefix='',joiner='',nmax=20):
-        '''
-        Breaks data into chunks of maximum size nmax
-
-        Each element of the chunked data is prefixed with prefix and joined back together with joiner
-
-        data = ['1','2','3','4']
-        _chunked_join(data,prefix='bibcode:','joiner=' OR ',nmax=2)
-
-        ['bibcode:1 OR bibcode:2','bibcode:3 OR bibcode:4']
-
-        Handy to break up large queries that might exceed search limits (seems to be a max of 50
-        bibcodes or arxiv ids at a time).
-        Where prefix is the ads term ('bibcode:' or 'indentifier:')
-        and joiner is logical or ' OR '
-
-        '''
-        res = []
-
-        for pos in range(0, len(data), nmax):
-            x = [prefix+j for j in data[pos:pos + nmax]]
-            res.append(joiner.join(x))
-
-        return res
-
-
-class SearchError(Exception):
-    pass
+    def search_citation(self):
+        if 'et al' in self._query:
+            author,year = self._query.split('et al.')
+            return 'author:"^{}" year:{}'.format(author,year)
+        if '&' in self._query:
+            a1,a2 = self._query.split('&')
+            a2, year = a2.split()
+            return 'author:"^{}" author:"{}" year:{}'.format(a1,a2,year)
+        return False

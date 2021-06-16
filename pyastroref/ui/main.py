@@ -8,7 +8,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk, GObject, Gdk
 
-from . import options, journal, leftpanel, utils
+from . import options, journal, leftpanel, utils, pdf
 
 
 from ..papers import adsabs as ads
@@ -83,9 +83,16 @@ class MainWindow(Gtk.Window):
         if len(query) == 0:
             return
 
-        def target():
-            return adsSearch.search(query)
+        p = self.right_panel.get_nth_page(self.right_panel.get_current_page())
+        if isinstance(p,pdf.ShowPDF):
+            q = query + ' references({})'.format(p.data.bibcode)
+        else:
+            q = query
 
+        def target():
+            return adsSearch.search(q)
+
+        print(q,query,type(p))
         journal.ShowJournal(target,self.right_panel,query)
 
     def setup_panels(self):

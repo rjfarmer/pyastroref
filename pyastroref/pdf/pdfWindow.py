@@ -63,7 +63,6 @@ class _Pdf(object):
 
         self.view.connect('key-press-event', self.key_press)
 
-
     def start_page(self, *args):
         self.model.set_page(0)
 
@@ -203,6 +202,12 @@ class _Pdf(object):
         EvinceView.Job.scheduler_push_job(
             self._find_job, EvinceView.JobPriority.PRIORITY_NONE)
 
+    def index(self):
+        # TreeModel of section names, subsections are children of
+        # of the parents 
+        # Loop with for i in index(): print(i[:])
+        return self.pdf.get_links_model() 
+
 
 class SearchBar(Gtk.HBox):
     def __init__(self, pdf):
@@ -252,7 +257,7 @@ class SearchBar(Gtk.HBox):
         query = widget.get_text().lower()
         print(query)
         self.pdf.search(query)
-        self.pdf.view.find_next()
+        self.on_next()
 
     def search_stop(self, widget):
         self.pdf.view.find_cancel()

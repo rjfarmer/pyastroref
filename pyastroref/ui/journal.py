@@ -204,6 +204,8 @@ class ShowJournal(Gtk.VBox):
                 ShowJournal(article.references,self.notebook,'Refs:'+article.name)
             else:
                 pdf.ShowPDF(article,self.notebook)
+                #adsData.db.add_item({article.bibcode:article})
+                #adsData.db.commit()
 
 
     def refresh_results(self, widget):
