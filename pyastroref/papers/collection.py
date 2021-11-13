@@ -33,6 +33,10 @@ class Collection(object):
         self.all_journals = {}
         self._data = {}
 
+        os.makedirs(os.path.dirname(self._file_all),exist_ok=True)
+        os.makedirs(os.path.dirname(self._file),exist_ok=True)
+
+
         self.load_defaults()
 
         self.update_journals()
@@ -41,9 +45,8 @@ class Collection(object):
     def load_defaults(self):
         if not os.path.exists(self._file):
             self.default_journals = self._init_default_journals
-            return
-
-        self.default_journals = self.read_file(self._file)
+        else:
+            self.default_journals = self.read_file(self._file)
 
 
 
