@@ -112,7 +112,6 @@ class _Pdf(object):
         state = event.state
         ctrl = (state & Gdk.ModifierType.CONTROL_MASK)
 
-        print(keyval_name)
         if ctrl:
             if keyval_name == 'c':
                 self.copy_text()
@@ -134,6 +133,9 @@ class _Pdf(object):
                 return
             elif keyval_name == 'Right':
                 self.rotate_right()
+                return
+            elif keyval_name == 'f':
+                self.sb.grab_focus()
                 return
 
         if keyval_name == 'Page_Up':
@@ -237,6 +239,7 @@ class SearchBar(Gtk.HBox):
         self.sb.connect("previous-match", self.on_prev)
         self.sb.connect("next-match", self.on_next)
 
+        self.pdf.sb = self.sb
 
     def add_button(self,button):
         self.bs.append(Gtk.Button())
@@ -283,11 +286,10 @@ class pdfHead(Gtk.HBox):
             self.add_button(i)
 
 
-        sb = SearchBar(self.pdf)
-        self.pack_end(sb,True,True,0)
+        self.sb = SearchBar(self.pdf)
+        self.pack_end(self.sb,True,True,0)
 
         self.show_all()
-
 
     def add_button(self,button):
         button['button'] = Gtk.Button()
