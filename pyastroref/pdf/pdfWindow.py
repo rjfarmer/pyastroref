@@ -221,8 +221,8 @@ class SearchBar(Gtk.HBox):
         hb.pack_start(self.sb,True,True,0)
 
         buttons1 = [
-            ['go-up',self.on_next,hb],
-            ['go-down',self.on_prev,hb],
+            ['go-up',self.on_prev,hb],
+            ['go-down',self.on_next,hb],
         ]
 
         self.bs = []
@@ -255,9 +255,8 @@ class SearchBar(Gtk.HBox):
 
     def search(self, widget):
         query = widget.get_text().lower()
-        print(query)
         self.pdf.search(query)
-        self.on_next()
+        self.on_next('')
 
     def search_stop(self, widget):
         self.pdf.view.find_cancel()
