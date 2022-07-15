@@ -92,7 +92,6 @@ class MainWindow(Gtk.Window):
         def target():
             return adsSearch.search(q)
 
-        print(q,query,type(p))
         journal.ShowJournal(target,self.right_panel,query)
 
     def setup_panels(self):

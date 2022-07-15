@@ -155,7 +155,7 @@ class LeftPanel(object):
 
     def up_alllibs(self, name):
         self.store.clear()
-        self.make_rows()
+        GLib.idle_add(self.make_rows)
 
     def tooltip(self, widget, x, y, keyboard, tooltip):
         # Get row:
