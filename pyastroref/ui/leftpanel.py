@@ -23,7 +23,7 @@ class LeftPanel(object):
         self.notebook = notebook
 
         self.libs = pyastroapi.libraries.libraries()
-        self.adsJournals = shelves.shelf()
+        self.adsJournals = shelves.Shelf()
 
         self.make_rows()
 
