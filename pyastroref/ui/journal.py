@@ -24,7 +24,7 @@ class JournalPage(Gtk.VBox):
         self.scroll = Gtk.ScrolledWindow()
 
         self.store = JournalStore(name)
-        self.store_view = JournalView(self.store)
+        self.store_view = JournalView(self.notebook, self.store)
         self.header = JournalMenu(self.notebook, self, name)
         self.setup_sb()
 
@@ -51,9 +51,13 @@ class JournalPage(Gtk.VBox):
 
     def download(self):
         def threader():
-            GLib.idle_add(self.store.make,self.target)
-            GLib.idle_add(self.header.spin_off)
-            self.header.set_data(self.store.journal)
+            def f():
+                self.store.make(self.target)
+                self.header.spin_off()
+                self.header.set_data(self.store.journal)
+                self.store_view.set_data(self.store.journal)
+
+            GLib.idle_add(f)
 
         thread = threading.Thread(target=threader)
         thread.daemon = True
@@ -238,6 +242,7 @@ class JournalStore(Gtk.ListStore):
             ])
 
         utils.show_status('Showing {} articles'.format(len(self.journal)))
+        
 
     def refresh_results(self, widget):
         query = widget.get_text().lower()
@@ -258,9 +263,11 @@ class JournalStore(Gtk.ListStore):
 
 
 class JournalView(Gtk.TreeModelSort):
-    def __init__(self, store):
+    def __init__(self, notebook, store):
         Gtk.TreeModelSort.__init__(self, store)
 
+        self.store = store
+        self.notebook = notebook
         self.journal = []
 
         self.set_sort_func(2, self.int_compare, 2)
@@ -294,6 +301,10 @@ class JournalView(Gtk.TreeModelSort):
 
         self.treeview.connect('query-tooltip' , self.tooltip)
         self.treeview.connect('button-press-event' , self.button_press_event)
+
+    def set_data(self,journal):
+        print("Called",journal)
+        self.journal = journal
 
 
     def int_compare(self, model, row1, row2, user_data):
@@ -332,24 +343,24 @@ class JournalView(Gtk.TreeModelSort):
         if path is None:
             return False
 
-
         cp = self.convert_path_to_child_path(path)
         row = cp.get_indices()[0] 
+
         article = self.journal[row]
 
         title = col.get_title()
         if event.button == Gdk.BUTTON_PRIMARY: # left click
             if title == 'Bibtex':
                 utils.clipboard(article.bibtex())
-                utils.show_status('Bibtex downloaded for {}'.format(article.bibcode))
+                utils.show_status(f"Bibtex downloaded for {article.bibcode}")
             elif title == "First Author":
                 def func():
                     return pyastroapi.search.first_author(article.first_author)
-                ShowJournal(func,self.notebook,article.first_author)
+                JournalPage(func,self.notebook,article.first_author)
             elif title == 'Citations':
-                ShowJournal(article.citations,self.notebook,'Cites:'+article.name)
+                JournalPage(article.citations,self.notebook,'Cites:'+article.name)
             elif title == 'References':
-                ShowJournal(article.references,self.notebook,'Refs:'+article.name)
+                JournalPage(article.references,self.notebook,'Refs:'+article.name)
             else:
                 pdf.ShowPDF(article,self.notebook)
                 #adsData.db.add_item({article.bibcode:article})
