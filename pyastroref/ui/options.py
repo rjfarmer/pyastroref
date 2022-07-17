@@ -22,17 +22,8 @@ class OptionsMenu(Gtk.Window):
         grid = Gtk.Grid()
         self.add(grid)
 
-        self.ads_entry = Gtk.Entry()
-        self.ads_entry.set_width_chars(50)
-
-        self.ads_entry.set_text(token.get_token())
-        self.ads_entry.set_visibility(False)
-        self.ads_entry.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY,'dialog-password-symbolic')
-        self.ads_entry.connect('icon-press',self.flip_visible)
-
-        self.orcid_entry = Gtk.Entry()
-        self.orcid_entry.set_text(token.get_orcid())
-        self.orcid_entry.set_width_chars(50)
+        self.setup_adsabs()
+        self.setup_orcid()
 
         label = "Choose Folder"
         if self.pdffolder is not None:
@@ -79,6 +70,21 @@ class OptionsMenu(Gtk.Window):
                             Gtk.PositionType.BOTTOM,2,1)  
 
         self.show_all()   
+
+    def setup_adsabs(self):
+        self.ads_entry = Gtk.Entry()
+        self.ads_entry.set_width_chars(50)
+
+        self.ads_entry.set_text(token.get_token())
+        self.ads_entry.set_visibility(False)
+        self.ads_entry.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY,'dialog-password-symbolic')
+        self.ads_entry.connect('icon-press',self.flip_visible)
+
+    def setup_orcid(self):
+        self.orcid_entry = Gtk.Entry()
+        self.orcid_entry.set_text(token.get_orcid())
+        self.orcid_entry.set_width_chars(50)
+
 
     def save_ads(self, button):
         utils.settings.adsabs = self.ads_entry.get_text()
