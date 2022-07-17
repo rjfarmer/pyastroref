@@ -3,6 +3,9 @@
 import os
 import sys
 import threading
+import glob
+import datetime
+from pathlib import Path
 
 import gi
 gi.require_version("Gtk", "3.0")
@@ -40,6 +43,9 @@ class MainWindow(Gtk.Window):
             options.OptionsMenu()
 
         self.show_all()
+
+        _cleanup_caches()
+        GLib.timeout_add_seconds(24*60*60, _cleanup_caches)
 
 
     def setup_headerbar(self):
@@ -130,3 +136,14 @@ class AdsSearchEntry(Gtk.SearchEntry):
             return articles.journal(search = query)
 
         journal.JournalPage(target,self.rp,query)
+
+
+def _cleanup_caches():
+    folder = utils.settings.cache
+
+    yesterday = datetime.date.today() - datetime.timedelta(days=1)
+    for file in glob.glob(os.path.join(folder,'*')):
+        path = Path(file)
+        last_modified = datetime.date.fromtimestamp(path.stat().st_mtime)
+        if last_modified < yesterday:
+            os.remove(file)
