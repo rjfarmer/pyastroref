@@ -8,9 +8,14 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk, GObject, Gdk
 
-from ..papers import adsabs as ads
+import pyastroapi.libraries as lib
 
-adsData = ads.adsabs()
+_alllibs = None
+
+def _make_libs():
+    if _alllibs is not None:
+        _alllibs = lib.libraries()
+        GLib.idle_add(_alllibs.update)
 
 
 class Add2Lib(Gtk.Window):
@@ -27,8 +32,10 @@ class Add2Lib(Gtk.Window):
 
 
         self.combo = Gtk.ComboBoxText()
-        libs = adsData.libraries.names()
-        for i in libs:
+
+        _make_libs()
+
+        for i in _alllibs.names():
             self.combo.append_text(i)
 
         self.combo.set_entry_text_column(0)
@@ -48,7 +55,7 @@ class Add2Lib(Gtk.Window):
         lib = self.combo.get_active_text()
         if lib is not None and len(self.bibcodes):
             def target():
-                adsData.libraries[lib].add(self.bibcodes)
+                _alllibs[lib].add(self.bibcodes)
 
             thread = threading.Thread(target=target)
             thread.daemon = True
@@ -71,9 +78,11 @@ class EditLibrary(Gtk.Window):
         self._public=False
         self._callback = callback
 
+        _make_libs()
+
         if self._name is not None:
-            if self._name in adsData.libraries:
-                self._lib = adsData.libraries[self._name]
+            if self._name in _alllibs:
+                self._lib = _alllibs[self._name]
                 self._description = self._lib.description
                 self._public = self._lib.public
 
@@ -149,12 +158,15 @@ class EditLibrary(Gtk.Window):
     def on_save(self, button):
         name = self.name.get_text()
         description = self.description.get_text()
+
+        _make_libs()
+
         if self._add:
             def target():
-                adsData.libraries.add(name,description,self.button1.get_active())
+                _alllibs.new(name,description,self.button1.get_active())
         else:
             def target():
-                adsData.libraries.edit(self._name, name,description,self.button1.get_active())
+                _alllibs.edit(self._name, name,description,self.button1.get_active())
 
         thread = threading.Thread(target=target)
         thread.daemon = True

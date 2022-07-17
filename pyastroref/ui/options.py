@@ -8,17 +8,16 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk, GObject, Gdk
 
-from ..papers import adsabs as ads
+import pyastroapi.api.token as token
 
 from . import utils
 
-adsData = ads.adsabs()
 
 class OptionsMenu(Gtk.Window):
     def __init__(self):
         Gtk.Window.__init__(self, title="Options")
         self.set_position(Gtk.WindowPosition.CENTER)
-        self.pdffolder = adsData.pdffolder
+        self.pdffolder = utils.settings.pdffolder
 
         grid = Gtk.Grid()
         self.add(grid)
@@ -26,17 +25,18 @@ class OptionsMenu(Gtk.Window):
         self.ads_entry = Gtk.Entry()
         self.ads_entry.set_width_chars(50)
 
-        if adsData.token is not None:
-            self.ads_entry.set_text(adsData.token)
+        self.ads_entry.set_text(token.get_token())
+        self.ads_entry.set_visibility(False)
+        self.ads_entry.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY,'dialog-password-symbolic')
+        self.ads_entry.connect('icon-press',self.flip_visible)
 
         self.orcid_entry = Gtk.Entry()
-        if adsData.orcid is not None:
-            self.orcid_entry.set_text(adsData.orcid)
+        self.orcid_entry.set_text(token.get_orcid())
         self.orcid_entry.set_width_chars(50)
 
         label = "Choose Folder"
-        if adsData.pdffolder is not None:
-            label = adsData.pdffolder
+        if self.pdffolder is not None:
+            label = self.pdffolder
 
         self.folder_entry = Gtk.Button(label=label)
         self.folder_entry.connect("clicked", self.on_file_clicked)
@@ -81,10 +81,16 @@ class OptionsMenu(Gtk.Window):
         self.show_all()   
 
     def save_ads(self, button):
-        adsData.token = self.ads_entry.get_text()
+        utils.settings.adsabs = self.ads_entry.get_text()
 
     def save_orcid(self, button):
-        adsData.orcid = self.orcid_entry.get_text()
+        utils.settings.orcid = self.orcid_entry.get_text()
+
+    def flip_visible(self, *args):
+        if self.ads_entry.get_visibility():
+            self.ads_entry.set_visibility(False)
+        else:
+            self.ads_entry.set_visibility(True)
 
     def on_file_clicked(self, widget):
         dialog = Gtk.FileChooserDialog(
@@ -109,10 +115,9 @@ class OptionsMenu(Gtk.Window):
         dialog.destroy()
 
     def save(self, widegt):
-        adsData.token = self.ads_entry.get_text()
-        adsData.orcid = self.orcid_entry.get_text()
-        adsData.pdffolder = self.pdffolder
-        adsData.reload()
+        utils.settings.adsabs = self.ads_entry.get_text()
+        utils.settings.orcid = self.orcid_entry.get_text()
+        utils.settings.pdffolder = self.pdffolder
         utils.set_dm(self.dm_button.get_active())
         self.destroy()
 

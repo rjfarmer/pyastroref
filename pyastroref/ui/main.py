@@ -8,14 +8,11 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk, GObject, Gdk
 
+import pyastroapi.search as search
+
 from . import options, journal, leftpanel, utils, pdf
 
 
-from ..papers import adsabs as ads
-from ..papers import articles
-
-adsData = ads.adsabs()
-adsSearch = ads.articles.search(adsData)
 
 class MainWindow(Gtk.Window):
     def __init__(self):
@@ -38,7 +35,7 @@ class MainWindow(Gtk.Window):
 
         self.setup_grid()  
 
-        if adsData.token is None:
+        if utils.settings.adsabs is None:
             options.OptionsMenu()
 
         self.show_all()
@@ -90,7 +87,7 @@ class MainWindow(Gtk.Window):
             q = query
 
         def target():
-            return adsSearch.search(q)
+            return search.search(q)
 
         journal.ShowJournal(target,self.right_panel,query)
 

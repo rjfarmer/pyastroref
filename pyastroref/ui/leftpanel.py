@@ -10,16 +10,9 @@ from gi.repository import GLib, Gtk, GObject, Gdk
 
 from . import journal, utils, saved_search, libraries
 
-from ..papers import adsabs as ads
-from ..papers import collection
-from ..papers import arxiv
+import pyastroapi
 
 from . import collections
-
-adsData = ads.adsabs()
-adsSearch = ads.articles.search(adsData)
-adsJournals = collection.Collection(adsData)
-
 
 class LeftPanel(object):
     _fields = ['Home', 'ORCID', 'Arxiv', 'Libraries', 'Journals', 'Saved searches']
@@ -28,6 +21,9 @@ class LeftPanel(object):
     def __init__(self, notebook):
         self.store = Gtk.TreeStore(str)
         self.notebook = notebook
+
+        self.libs = pyastroapi.libraries.libraries()
+        self.adsJournals = collections.Collection()
 
         self.make_rows()
 
@@ -51,11 +47,11 @@ class LeftPanel(object):
                             'idx': idx
                             }
 
-        libs = sorted(adsData.libraries.names(),key=str.lower)
+        libs = sorted(self.libs.names(),key=str.lower)
         for i in libs:
             self.store.append(self.rows['Libraries']['row'],[i])
 
-        show_journals = sorted([adsJournals.default_journals[i] for i in adsJournals.list_defaults()],key=str.lower)
+        show_journals = sorted([self.adsJournals.default_journals[i] for i in self.adsJournals.list_defaults()],key=str.lower)
         for i in show_journals:
             self.store.append(self.rows['Journals']['row'],[i])
 
@@ -86,13 +82,14 @@ class LeftPanel(object):
                     return []
                 target = func
             elif row == self.rows['Arxiv']['idx']:
-                target = arxiv.arxivrss(adsData).articles
+                pass
+                #target = arxiv.arxivrss(adsData).articles
             elif row == self.rows['ORCID']['idx']:
-                if adsData.orcid is None:
+                if utils.settngs.orcid is None:
                     utils.orcid_error_window()
                     return
                 def func():
-                    return adsSearch.orcid(adsData.orcid)
+                    return pyastroapi.search.orcid(utils.settings.orcid)
                 target = func
             elif row == self.rows['Libraries']['idx']:
                 pass
@@ -106,12 +103,14 @@ class LeftPanel(object):
                 # Must be an item with sub items
                 if row == self.rows['Libraries']['idx']:
                     def func():
-                        bibcodes = adsData.libraries[child].keys()
-                        return adsSearch.bibcode_multi(bibcodes)
+                        bibcodes = self.libs[child].keys()
+                        return
+                        #return adsSearch.bibcode_multi(bibcodes)
                     target = func
                 elif self.rows['Journals']['idx']:
                     def func():
-                        return adsJournals.search(child)
+                        return
+                        #return adsJournals.search(child)
                     target = func
 
                 elif self.rows['Saved searches']['idx']:
@@ -177,7 +176,7 @@ class LeftPanel(object):
         name = list(self.store[row])[0]
 
         if name=='Journals' and child is not None:
-            for key,value in adsJournals.default_journals.items():
+            for key,value in self.adsJournals.default_journals.items():
                 if value == child:
                     name=key
 
@@ -186,7 +185,7 @@ class LeftPanel(object):
             return True
             
         if name=='Libraries' and child is not None:
-            tooltip.set_text(adsData.libraries[child].description)
+            tooltip.set_text(self.libs.libraries[child].description)
             self.treeview.set_tooltip_row(tooltip, path)
             return True
 
@@ -200,6 +199,8 @@ class LeftPanelMenu(Gtk.Menu):
         self.name = name
         self.child = child
         self.refresh_callback = refresh_callback
+
+        self.libs = pyastroapi.libraries.libraries()
 
         if add:
             self.add = Gtk.MenuItem(label='Add')
@@ -244,7 +245,7 @@ class LeftPanelMenu(Gtk.Menu):
         name = self.name
         if self.child is not None:
             name=self.child
-        adsData.libraries.remove(name)
+        self.libs.remove(name)
         if self.refresh_callback is not None:
             self.refresh_callback(name)
 

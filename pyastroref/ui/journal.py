@@ -10,11 +10,7 @@ from gi.repository import GLib, Gtk, GObject, Gdk
 
 from . import utils, libraries, pdf, saved_search
 
-from ..papers import adsabs as ads
-from ..papers import articles
-
-adsData = ads.adsabs()
-adsSearch = ads.articles.search(adsData)
+import pyastroapi
 
 class ShowJournal(Gtk.VBox):
     cols = ["Title", "First Author", "Year", "Authors", "Journal","References", "Citations", 
@@ -66,7 +62,7 @@ class ShowJournal(Gtk.VBox):
             GLib.idle_add(self.store.clear)
             try:
                 self._journal = self.target()
-            except articles.SearchError:
+            except Exception:
                 GLib.idle_add(utils.ads_error_window)
 
             GLib.idle_add(self.make_liststore,self._journal)
@@ -196,7 +192,7 @@ class ShowJournal(Gtk.VBox):
                 utils.show_status('Bibtex downloaded for {}'.format(article.bibcode))
             elif title == "First Author":
                 def func():
-                    return adsSearch.first_author(article.first_author)
+                    return pyastroapi.search.first_author(article.first_author)
                 ShowJournal(func,self.notebook,article.first_author)
             elif title == 'Citations':
                 ShowJournal(article.citations,self.notebook,'Cites:'+article.name)

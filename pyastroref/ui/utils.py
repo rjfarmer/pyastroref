@@ -6,11 +6,93 @@ import random
 import string
 import threading
 
+from pathlib import Path
+from appdirs import AppDirs
+
+dirs = AppDirs("pyAstroRef")
+
 import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk, GObject, Gdk, Gio
 
-from ..papers import utils
+import pyastroapi.api.token as token
+
+class Settings:
+    def __init__(self):
+        # Where to store PDF's
+        self._PDFFOLDER_FILE = os.path.join(dirs.user_config_dir,'pdfs')
+        # Where to store list of journals
+        self._ALL_JOURNALS_LIST = os.path.join(dirs.user_config_dir,'all_journals')
+        # Where to store list of to display
+        self._JOURNALS_LIST = os.path.join(dirs.user_config_dir,'journals')
+        # Dark mode?
+        self._DARK_MODE_FILE = os.path.join(dirs.user_config_dir,'dark_mode')
+
+
+    def _save_key_file(self,filename,key):
+        os.makedirs(os.path.dirname(filename),exist_ok=True)
+        with open(filename,'w') as f:
+            print(key,file=f)
+
+    def _read_key_file(self, filename):
+        os.makedirs(os.path.dirname(filename),exist_ok=True) # Handle making folders on first run
+        try:
+            with open(filename,'r') as f:
+                result = f.readline().strip() 
+        except FileNotFoundError:
+            return None
+        return result
+
+    @property
+    def pdffolder(self):
+        return self._read_key_file(self._PDFFOLDER_FILE)
+
+    @pdffolder.setter
+    def pdffolder(self, value):
+        return self._save_key_file(self._PDFFOLDER_FILE, value)
+
+    @property
+    def all_journals(self):
+        return self._read_key_file(self._ALL_JOURNALS_LIST)
+
+    @all_journals.setter
+    def all_journals(self, value):
+        return self._save_key_file(self._ALL_JOURNALS_LIST, value)
+
+    @property
+    def journals(self):
+        return self._read_key_file(self._JOURNALS_LIST)
+
+    @journals.setter
+    def journals(self, value):
+        return self._save_key_file(self._JOURNALS_LIST, value)
+
+    @property
+    def dark_mode(self):
+        return self._read_key_file(self._DARK_MODE_FILE)
+
+    @dark_mode.setter
+    def dark_mode(self, value):
+        return self._save_key_file(self._DARK_MODE_FILE, value)
+
+    @property
+    def adsabs(self):
+        return token.get_token()
+
+    @adsabs.setter
+    def adsabs(self, value):
+        return token.save_token(value)
+
+    @property
+    def orcid(self):
+        return token.get_orcid()
+
+    @orcid.setter
+    def orcid(self, value):
+        return token.save_orcid(value)
+
+
+settings = Settings()
 
 _statusbar = Gtk.Statusbar()
 
@@ -65,20 +147,19 @@ def file_error_window(bibcode):
 
 def set_dm(mode=None):
     if mode is None:
-        mode = utils.read_key_file(utils.settings['DARK_MODE_FILE'])
+        mode = settings.dark_mode
         if mode == 'False':
             mode = False
         else:
             mode = True
 
-    settings = Gtk.Settings.get_default()
-    settings.set_property("gtk-application-prefer-dark-theme",mode)
-    utils.save_key_file(utils.settings['DARK_MODE_FILE'], mode)
+    gtksettings = Gtk.Settings.get_default()
+    gtksettings.set_property("gtk-application-prefer-dark-theme",mode)
+    settings.dark_mode =  mode
 
 def get_dm():
-    settings = Gtk.Settings.get_default()
-    print(settings.get_property("gtk-application-prefer-dark-theme"))
-    return settings.get_property("gtk-application-prefer-dark-theme")
+    gtksettings = Gtk.Settings.get_default()
+    return gtksettings.get_property("gtk-application-prefer-dark-theme")
 
 def thread(function,*args):
     thread = threading.Thread(target=function,args=args)
@@ -129,3 +210,4 @@ def show_status(message,contextid=None):
 
     #Timeout message
     GLib.timeout_add_seconds(5,func)
+
