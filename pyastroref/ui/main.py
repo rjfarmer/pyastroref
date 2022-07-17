@@ -9,6 +9,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk, GObject, Gdk
 
 import pyastroapi.search as search
+import pyastroapi.articles as articles
 
 from . import options, journal, leftpanel, utils, pdf
 
@@ -29,9 +30,9 @@ class MainWindow(Gtk.Window):
         self.set_position(Gtk.WindowPosition.CENTER)
         self.maximize()
 
+        self.setup_panels()
         self.setup_search_bar()
         self.setup_headerbar()
-        self.setup_panels()
 
         self.setup_grid()  
 
@@ -50,7 +51,6 @@ class MainWindow(Gtk.Window):
         self.set_titlebar(hb)
 
         hb.pack_end(self.button_opt)
-
         hb.pack_start(self.search)
 
 
@@ -66,30 +66,9 @@ class MainWindow(Gtk.Window):
 
 
     def setup_search_bar(self):
-        self.search = Gtk.SearchEntry()
-        self.search.set_placeholder_text('Search ADS ...')
-        self.search.connect("activate",self.on_click_search)
-
-        self.search.set_can_default(True)
+        self.search = AdsSearchEntry(self.right_panel)
         self.set_default(self.search)
-        self.search.set_hexpand(True)
 
-    def on_click_search(self, button):
-        query = self.search.get_text()
-
-        if len(query) == 0:
-            return
-
-        p = self.right_panel.get_nth_page(self.right_panel.get_current_page())
-        if isinstance(p,pdf.ShowPDF):
-            q = query + ' references({})'.format(p.data.bibcode)
-        else:
-            q = query
-
-        def target():
-            return search.search(q)
-
-        journal.ShowJournal(target,self.right_panel,query)
 
     def setup_panels(self):
         self.panels = Gtk.HPaned()
@@ -123,3 +102,31 @@ class MainWindow(Gtk.Window):
         self.add(self.grid)
 
         self.grid.add(self.panels)
+
+
+class AdsSearchEntry(Gtk.SearchEntry):
+    def __init__(self, rp):
+        Gtk.SearchEntry.__init__(self)
+        self.set_placeholder_text('Search ADS ...')
+        self.connect("activate",self.on_click_search)
+
+        self.set_can_default(True)
+        self.set_hexpand(True)
+
+        self.rp = rp
+        self.show_all()
+
+    def on_click_search(self, button):
+        query = self.get_text()
+
+        if len(query) == 0:
+            return
+
+        p = self.rp.get_nth_page(self.rp.get_current_page())
+        if isinstance(p, pdf.ShowPDF):
+            query = query + " references({p.data.bibcode})"
+
+        def target():
+            return articles.journal(data=search.search(query))
+
+        journal.ShowJournal(target,self.rp,query)
