@@ -18,7 +18,7 @@ from . import utils
 class JournalWindow(Gtk.Window):
     def __init__(self, callback=None):
 
-        self.adsJournals = Collection()
+        self.adsJournals = Shelf()
 
         Gtk.Window.__init__(self, title='Edit journals')
         self.set_position(Gtk.WindowPosition.CENTER)
@@ -108,7 +108,7 @@ class JournalWindow(Gtk.Window):
         return False
 
 
-class Collection:
+class Shelf:
     _url = 'http://adsabs.harvard.edu/abs_doc/journals1.html'
 
     _init_default_journals = {

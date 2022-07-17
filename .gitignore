@@ -96,3 +96,4 @@ ENV/
 *.o
 *.fpy
 *.pickle
+.vscode

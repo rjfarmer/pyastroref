@@ -12,7 +12,7 @@ from . import journal, utils, saved_search, libraries
 
 import pyastroapi
 
-from . import collections
+from . import shelves
 
 class LeftPanel(object):
     _fields = ['Home', 'ORCID', 'Arxiv', 'Libraries', 'Journals', 'Saved searches']
@@ -23,7 +23,7 @@ class LeftPanel(object):
         self.notebook = notebook
 
         self.libs = pyastroapi.libraries.libraries()
-        self.adsJournals = collections.Collection()
+        self.adsJournals = shelves.shelf()
 
         self.make_rows()
 
@@ -231,7 +231,7 @@ class LeftPanelMenu(Gtk.Menu):
 
     def on_click_add(self, button):
         if self.name == 'Journals':
-            collections.JournalWindow(callback=self.refresh_callback)
+            shelf.JournalWindow(callback=self.refresh_callback)
         else:
             libraries.EditLibrary(None,add=True, callback=self.refresh_callback)
 
