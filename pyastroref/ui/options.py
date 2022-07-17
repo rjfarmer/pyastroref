@@ -18,57 +18,15 @@ class OptionsMenu(Gtk.Window):
         Gtk.Window.__init__(self, title="Options")
         self.set_position(Gtk.WindowPosition.CENTER)
         self.set_keep_above(True)
-        self.pdffolder = utils.settings.pdffolder
-
-        grid = Gtk.Grid()
-        self.add(grid)
-
+    
         self.setup_adsabs()
         self.setup_orcid()
+        self.setup_folder()
 
-        label = "Choose Folder"
-        if self.pdffolder is not None:
-            label = self.pdffolder
+        self.setup_save()
+        self.setup_dm()
 
-        self.folder_entry = Gtk.Button(label=label)
-        self.folder_entry.connect("clicked", self.on_file_clicked)
-
-        ads_label = Gtk.LinkButton(uri='https://ui.adsabs.harvard.edu/user/settings/token',label='ADSABS ID')
-        orcid_label = Gtk.LinkButton(uri='https://orcid.org',label='ORCID')
-
-        file_label = Gtk.Label(label='Save folder')
-
-        save_button = Gtk.Button(label="Save")
-        save_button.connect("clicked", self.save)
-
-        dm_label = Gtk.Label(label='Dark mode')
-        self.dm_button = Gtk.Switch()
-        self.dm_button.connect("notify::active", self.on_switch_activated)
-        self.dm_button.set_active(utils.get_dm())
-        self.dm_button.set_halign(Gtk.Align.CENTER)
-
-        grid.add(ads_label)
-        grid.attach_next_to(self.ads_entry,ads_label,
-                            Gtk.PositionType.RIGHT,1,1)
-     
-        grid.attach_next_to(orcid_label,ads_label,
-                            Gtk.PositionType.BOTTOM,1,1)
-        grid.attach_next_to(self.orcid_entry,orcid_label,
-                            Gtk.PositionType.RIGHT,1,1)
-
-        grid.attach_next_to(file_label,orcid_label,
-                            Gtk.PositionType.BOTTOM,1,1)
-        grid.attach_next_to(self.folder_entry,file_label,
-                            Gtk.PositionType.RIGHT,1,1)   
-
-        grid.attach_next_to(dm_label,file_label,
-                            Gtk.PositionType.BOTTOM,1,1)
-        grid.attach_next_to(self.dm_button,dm_label,
-                            Gtk.PositionType.RIGHT,1,1)   
-
-
-        grid.attach_next_to(save_button,dm_label,
-                            Gtk.PositionType.BOTTOM,2,1)  
+        self.setup_grid()
 
         self.show_all()   
 
@@ -83,12 +41,66 @@ class OptionsMenu(Gtk.Window):
         self.ads_entry.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY,'dialog-password-symbolic')
         self.ads_entry.connect('icon-press',self.flip_visible)
 
+        self.ads_label = Gtk.LinkButton(uri='https://ui.adsabs.harvard.edu/user/settings/token',label='ADSABS ID')
+
+
     def setup_orcid(self):
         self.orcid_entry = Gtk.Entry()
         t = token.get_orcid()
         if t is not None:
             self.orcid_entry.set_text(token.get_orcid())
         self.orcid_entry.set_width_chars(50)
+
+        self.orcid_label = Gtk.LinkButton(uri='https://orcid.org',label='ORCID')
+
+
+    def setup_grid(self):
+        self.grid = Gtk.Grid()
+        self.add(self.grid)
+        self.grid.add(self.ads_label)
+        self.grid.attach_next_to(self.ads_entry,self.ads_label,
+                            Gtk.PositionType.RIGHT,1,1)
+     
+        self.grid.attach_next_to(self.orcid_label,self.ads_label,
+                            Gtk.PositionType.BOTTOM,1,1)
+        self.grid.attach_next_to(self.orcid_entry,self.orcid_label,
+                            Gtk.PositionType.RIGHT,1,1)
+
+        self.grid.attach_next_to(self.file_label,self.orcid_label,
+                            Gtk.PositionType.BOTTOM,1,1)
+        self.grid.attach_next_to(self.folder_entry,self.file_label,
+                            Gtk.PositionType.RIGHT,1,1)   
+
+        self.grid.attach_next_to(self.dm_label,self.file_label,
+                            Gtk.PositionType.BOTTOM,1,1)
+        self.grid.attach_next_to(self.dm_button,self.dm_label,
+                            Gtk.PositionType.RIGHT,1,1)   
+
+
+        self.grid.attach_next_to(self.save_button,self.dm_label,
+                            Gtk.PositionType.BOTTOM,2,1)  
+
+    def setup_dm(self):
+        self.dm_label = Gtk.Label(label='Dark mode')
+        self.dm_button = Gtk.Switch()
+        self.dm_button.connect("notify::active", self.on_switch_activated)
+        self.dm_button.set_active(utils.get_dm())
+        self.dm_button.set_halign(Gtk.Align.CENTER)
+
+    def setup_save(self):
+        self.save_button = Gtk.Button(label="Save")
+        self.save_button.connect("clicked", self.save)
+
+    def setup_folder(self):
+        self.pdffolder = utils.settings.pdffolder
+        label = "Choose Folder"
+        if self.pdffolder is not None:
+            label = self.pdffolder
+
+        self.folder_entry = Gtk.Button(label=label)
+        self.folder_entry.connect("clicked", self.on_file_clicked)
+
+        self.file_label = Gtk.Label(label='Save folder')
 
 
     def save_ads(self, button):
