@@ -17,6 +17,7 @@ class OptionsMenu(Gtk.Window):
     def __init__(self):
         Gtk.Window.__init__(self, title="Options")
         self.set_position(Gtk.WindowPosition.CENTER)
+        self.set_keep_above(True)
         self.pdffolder = utils.settings.pdffolder
 
         grid = Gtk.Grid()
@@ -75,14 +76,18 @@ class OptionsMenu(Gtk.Window):
         self.ads_entry = Gtk.Entry()
         self.ads_entry.set_width_chars(50)
 
-        self.ads_entry.set_text(token.get_token())
+        t = token.get_token()
+        if t is not None:
+            self.ads_entry.set_text(token.get_token())
         self.ads_entry.set_visibility(False)
         self.ads_entry.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY,'dialog-password-symbolic')
         self.ads_entry.connect('icon-press',self.flip_visible)
 
     def setup_orcid(self):
         self.orcid_entry = Gtk.Entry()
-        self.orcid_entry.set_text(token.get_orcid())
+        t = token.get_orcid()
+        if t is not None:
+            self.orcid_entry.set_text(token.get_orcid())
         self.orcid_entry.set_width_chars(50)
 
 
