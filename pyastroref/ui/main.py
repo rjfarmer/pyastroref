@@ -143,6 +143,8 @@ def _cleanup_caches():
 
     yesterday = datetime.date.today() - datetime.timedelta(days=1)
     for file in glob.glob(os.path.join(folder,'*')):
+        if 'bibtex' in file:
+            continue
         path = Path(file)
         last_modified = datetime.date.fromtimestamp(path.stat().st_mtime)
         if last_modified < yesterday:
