@@ -27,6 +27,10 @@ class Settings:
         self._JOURNALS_LIST = os.path.join(dirs.user_config_dir,'journals')
         # Dark mode?
         self._DARK_MODE_FILE = os.path.join(dirs.user_config_dir,'dark_mode')
+        # Cache location
+        self.cache = dirs.user_cache_dir
+
+        os.makedirs(self.cache,exist_ok=True)
 
 
     def _save_key_file(self,filename,key):

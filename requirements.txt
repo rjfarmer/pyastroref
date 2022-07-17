@@ -2,3 +2,4 @@ feedparser
 bibtexparser
 appdirs
 requests
+vcrpy

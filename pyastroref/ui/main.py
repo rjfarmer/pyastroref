@@ -85,7 +85,7 @@ class MainWindow(Gtk.Window):
         self.left_panel = leftpanel.LeftPanel(self.right_panel)
         def func():
             return []
-        journal.ShowJournal(func,self.right_panel, 'Home')
+        journal.JournalPage(func,self.right_panel, 'Home')
         
         self.right_panel.show_all()
 
@@ -127,6 +127,6 @@ class AdsSearchEntry(Gtk.SearchEntry):
             query = query + " references({p.data.bibcode})"
 
         def target():
-            return articles.journal(data=search.search(query))
+            return articles.journal(search = query)
 
-        journal.ShowJournal(target,self.rp,query)
+        journal.JournalPage(target,self.rp,query)

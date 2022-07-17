@@ -10,6 +10,8 @@ from gi.repository import GLib, Gtk, GObject, Gdk
 
 from . import journal, utils, saved_search, libraries
 
+import pyastroapi.articles as articles
+import pyastroapi.search as search
 import pyastroapi
 
 from . import shelves
@@ -85,11 +87,11 @@ class LeftPanel(object):
                 pass
                 #target = arxiv.arxivrss(adsData).articles
             elif row == self.rows['ORCID']['idx']:
-                if utils.settngs.orcid is None:
+                if utils.settings.orcid is None:
                     utils.orcid_error_window()
                     return
                 def func():
-                    return pyastroapi.search.orcid(utils.settings.orcid)
+                    return articles.journal(data=search.orcid(utils.settings.orcid))
                 target = func
             elif row == self.rows['Libraries']['idx']:
                 pass
@@ -104,7 +106,7 @@ class LeftPanel(object):
                 if row == self.rows['Libraries']['idx']:
                     def func():
                         bibcodes = self.libs[child].keys()
-                        return
+                        return articles.journal(bibcodes=bibcodes)
                         #return adsSearch.bibcode_multi(bibcodes)
                     target = func
                 elif self.rows['Journals']['idx']:

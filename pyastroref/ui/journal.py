@@ -3,6 +3,8 @@
 import os
 import sys
 import threading
+import vcr
+import hashlib
 
 import gi
 gi.require_version("Gtk", "3.0")
@@ -12,43 +14,34 @@ from . import utils, libraries, pdf, saved_search
 
 import pyastroapi
 
-class ShowJournal(Gtk.VBox):
-    cols = ["Title", "First Author", "Year", "Authors", "Journal","References", "Citations", 
-            "PDF", "Bibtex","bibcode"]
+class JournalPage(Gtk.VBox):
     def __init__(self, target, notebook, name):
         Gtk.VBox.__init__(self)
         self.has_search_open=False
 
         self.target = target
         self.notebook = notebook
-
-        self.store = Gtk.ListStore(*[str]*len(self.cols))
-        self.journal = []
-        self._journal = []
-        self.make_liststore(self._journal)
-        self.make_treeview()
-
-        self.sb = Gtk.SearchEntry() 
-        self.pack_start(self.sb,False,False,0)
-        self.sb.connect("changed", self.refresh_results)    
-        self.sb.grab_focus_without_selecting()
-
         self.scroll = Gtk.ScrolledWindow()
+
+        self.store = JournalStore(name)
+        self.store_view = JournalView(self.store)
+        self.header = JournalMenu(self.notebook, self, name)
+        self.setup_sb()
+
+        self.pack_start(self.sb,False,False,0)
+
         self.add(self.scroll)
 
         self.astroref_name = name
         self.set_vexpand(True)
         self.set_hexpand(True)
-        self.scroll.add(self.treeview)
-
-        self.header = JournalPopupWindow(self.notebook, self, name)
-
+        self.scroll.add(self.store_view.treeview)
 
         self.notebook.append_page(self, self.header)
         self.notebook.set_tab_reorderable(self, True)
         self.notebook.show_all()
-        GLib.idle_add(self.header.spin_on)
 
+        self.header.spin_on()
         self.download()
 
         self.show_all() 
@@ -58,66 +51,225 @@ class ShowJournal(Gtk.VBox):
 
     def download(self):
         def threader():
-            self._journal = []
-            GLib.idle_add(self.store.clear)
-            try:
-                self._journal = self.target()
-            except Exception:
-                GLib.idle_add(utils.ads_error_window)
-
-            GLib.idle_add(self.make_liststore,self._journal)
+            GLib.idle_add(self.store.make,self.target)
             GLib.idle_add(self.header.spin_off)
-            self.header.data = self._journal
+            self.header.set_data(self.store.journal)
 
         thread = threading.Thread(target=threader)
         thread.daemon = True
         thread.start()
 
-    def make_liststore(self,journal):
-        self.store.clear()
-        # Creating the ListStore model
-        for paper in journal:
-            pdficon = 'go-down'
-            if os.path.exists(paper.filename(True)):
-                pdficon = 'x-office-document'
+    def setup_sb(self):
+        self.sb = Gtk.SearchEntry() 
+        self.sb.connect("changed", self.store.refresh_results)
+        self.sb.grab_focus_without_selecting()
 
-            authors = paper.authors.split(';')[1:]
+
+class JournalMenu(Gtk.EventBox):
+    def __init__(self, notebook, page, name):
+        Gtk.EventBox.__init__(self)
+
+        self.notebook = notebook
+        self.page = page
+        self.name = name
+
+        self.data = None
+
+        self.spinner = Gtk.Spinner()
+        self.header = Gtk.HBox()
+        self.popover = Gtk.Popover()
+        self.title_label = Gtk.Label(label=self.name)
+
+        self.setup_close_button()
+
+        self.spin_on()
+        self.header.pack_start(self.title_label,
+                          expand=True, fill=True, padding=0)
+        self.header.pack_end(self.spinner,
+                        expand=False, fill=False, padding=0)
+
+        self.setup_buttons()
+
+        self.header.show_all()
+        self.show_all()
+
+
+    def set_data(self, data):
+        self.data = data
+
+    def setup_close_button(self):
+        self.close_button = Gtk.Button()
+        image = Gtk.Image()
+        image.set_from_icon_name('window-close', Gtk.IconSize.MENU)
+        self.close_button.set_image(image)
+        self.close_button.set_relief(Gtk.ReliefStyle.NONE)
+        self.close_button.connect('clicked', self.on_tab_close)
+
+    def setup_buttons(self):
+        self.button = {}
+
+        self.vbox = Gtk.VBox(orientation=Gtk.Orientation.VERTICAL)
+
+        buttons = ['copy_bibtex','add_lib','save_search','close']
+        labels = ["Copy BibTex","Add all to library","Save search","Close"]
+        seps = [True, False, True, False, False]
+        actions = [self.bp_bib,self.bp_add_lib,self.bp_save_search,self.bp_close]
+
+        for button, label, action,sep in zip(buttons, labels, actions, seps):
+            self.button[button] = Gtk.Button.new_with_label(label)
+            self.vbox.pack_start(self.button[button], False, True, 0)
+            self.button[button].connect('button-press-event', action)
+            if sep:
+                self.vbox.pack_start(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL), False, True, 10)
+
+        self.vbox.show_all()
+
+        self.popover.add(self.vbox)
+        self.popover.set_position(Gtk.PositionType.BOTTOM)
+        
+        self.popover.set_relative_to(self.header)
+
+        self.add(self.header)
+
+        self.connect("button-press-event", self.button_press)
+
+
+    def on_tab_close(self, button):
+        self.notebook.remove_page(self.notebook.page_num(self.page))
+
+    def button_press(self, widget, event):
+        if event.button == Gdk.BUTTON_PRIMARY:
+            self.notebook.set_current_page(self.notebook.page_num(self.page))
+            return True
+        elif event.button == Gdk.BUTTON_SECONDARY:
+            #make widget popup
+            self.popover.popup()
+            return True
+        return False
+
+    def spin_on(self):
+        self.spinner.start()
+
+    def spin_off(self):
+        self.spinner.stop()
+        self.header.remove(self.spinner)
+        self.header.pack_end(self.close_button,
+                        expand=False, fill=False, padding=0)
+        self.header.show_all()
+
+
+    def bp_bib(self, widget, event):
+        if self.data is not None:
+            utils.clipboard(self.data.bibtex())
+            utils.show_status("Bibtex downloaded")
+        return True
+
+    def bp_add_lib(self, widget, event):
+        if self.data is not None:
+            libraries.Add2Lib(self.data.bibcodes())
+        return True
+
+    def bp_close(self, widget, event):
+        self.on_tab_close(widget)
+
+    def bp_save_search(self, widget, event):
+        saved_search.AddSavedSearch(self.page.astroref_name)
+
+
+_cols = ["Title", "First Author", "Year", "Authors", "Journal","References", "Citations", 
+        "PDF", "Bibtex","bibcode"]
+
+class JournalStore(Gtk.ListStore):
+    def __init__(self, name):
+        Gtk.ListStore.__init__(self, *[str]*len(_cols))
+        self.journal = []
+        self.name = name
+        self.clear()
+
+    def make(self, target):
+        hash = hashlib.sha256()
+        hash.update(self.name.encode())
+        with vcr.use_cassette(os.path.join(utils.settings.cache,hash.hexdigest())):     
+            self.build(target)
+
+
+    def build(self, target):
+        self.journal = target()
+
+        if self.journal is None:
+            return
+
+        if len(self.journal) == 0:
+            return
+
+        # Creating the ListStore model
+        for paper in self.journal.values():
+            print(paper)
+            pdficon = 'go-down'
+
+            try:
+                if os.path.exists(os.path.join(utils.settings.pdffolder,paper.pdf.filename())):
+                    pdficon = 'x-office-document'
+            except (ValueError,pyastroapi.api.exceptions.NoRecordsFound): # No PDF available
+                pdficon = 'window-close'
+
+            authors = paper.authors()[1:]
             if len(authors) > 3:
                 authors = authors[0:3]
                 authors.append('et al')
             authors = '; '.join([i.strip() for i in authors])
 
-            self.store.append([
-                paper.title,
-                paper.first_author,
+            try:
+                refs = len(paper.references())
+            except pyastroapi.api.exceptions.MalformedRequest:
+                refs = 0
+
+            self.append([
+                paper.title[0],
+                paper.first_author(),
                 paper.year,
                 authors,
-                paper.journal,
-                str(paper.reference_count),
+                paper.pub,
+                str(refs),
                 str(paper.citation_count),
                 pdficon,
                 'edit-copy',
                 paper.bibcode
             ])
 
-        self.journal = journal
         utils.show_status('Showing {} articles'.format(len(self.journal)))
 
+    def refresh_results(self, widget):
+        query = widget.get_text().lower()
+        journal = []
+
+        for paper in self.journal:
+            if query in paper.title.lower():
+                journal.append(paper)
+            elif query in paper.abstract.lower():
+                journal.append(paper)
+            elif query in paper.authors.lower():
+                journal.append(paper)
+            elif query in paper.year:
+                journal.append(paper)
+
+        self.make(journal)
+        utils.show_status(f"Showing {len(journal)} out of {len(self.journal)}")
 
 
-    def make_treeviewsort(self):
-        self.treeviewsorted = Gtk.TreeModelSort(model=self.store)
-        self.treeviewsorted.set_sort_func(2, self.int_compare, 2)
-        self.treeviewsorted.set_sort_func(5, self.int_compare, 5)
-        self.treeviewsorted.set_sort_func(6, self.int_compare, 6)
+class JournalView(Gtk.TreeModelSort):
+    def __init__(self, store):
+        Gtk.TreeModelSort.__init__(self, store)
 
-    def make_treeview(self):
-        # creating the treeview and adding the columns
-        self.make_treeviewsort()
-        
-        self.treeview = Gtk.TreeView.new_with_model(self.treeviewsorted)
+        self.journal = []
+
+        self.set_sort_func(2, self.int_compare, 2)
+        self.set_sort_func(5, self.int_compare, 5)
+        self.set_sort_func(6, self.int_compare, 6)
+
+        self.treeview = Gtk.TreeView.new_with_model(self)
         self.treeview.set_has_tooltip(True)
-        for i, column_title in enumerate(self.cols):
+        for i, column_title in enumerate(_cols):
             if column_title in ['PDF','Bibtex']:
                 renderer = Gtk.CellRendererPixbuf()
                 column = Gtk.TreeViewColumn(column_title, renderer, icon_name=i)
@@ -163,7 +315,7 @@ class ShowJournal(Gtk.VBox):
             return True
         if path is None:
             return False
-        cp = self.treeviewsorted.convert_path_to_child_path(path)
+        cp = self.convert_path_to_child_path(path)
         row = cp.get_indices()[0] 
         if len(self.journal):
             tooltip.set_text(self.journal[row].abstract)
@@ -181,7 +333,7 @@ class ShowJournal(Gtk.VBox):
             return False
 
 
-        cp = self.treeviewsorted.convert_path_to_child_path(path)
+        cp = self.convert_path_to_child_path(path)
         row = cp.get_indices()[0] 
         article = self.journal[row]
 
@@ -202,131 +354,3 @@ class ShowJournal(Gtk.VBox):
                 pdf.ShowPDF(article,self.notebook)
                 #adsData.db.add_item({article.bibcode:article})
                 #adsData.db.commit()
-
-
-    def refresh_results(self, widget):
-        query = widget.get_text().lower()
-        journal = []
-        if len(self._journal) == 0 or len(self.journal) ==0:
-            return
-        
-        for paper in self._journal:
-            if query in paper.title.lower():
-                journal.append(paper)
-            elif query in paper.abstract.lower():
-                journal.append(paper)
-            elif query in paper.authors.lower():
-                journal.append(paper)
-            elif query in paper.year:
-                journal.append(paper)
-
-        self.make_liststore(journal)
-        utils.show_status('Showing {} out of {}'.format(len(journal),len(self._journal)))
-
-
-class JournalPopupWindow(Gtk.EventBox):
-    def __init__(self, notebook, page, name):
-        Gtk.EventBox.__init__(self)
-
-        self.notebook = notebook
-        self.page = page
-        self.bibcodes = []
-        self.query = ''
-        self.name = name
-
-        self.spinner = Gtk.Spinner()
-        self.header = Gtk.HBox()
-        self.title_label = Gtk.Label(label=self.name)
-        image = Gtk.Image()
-        image.set_from_icon_name('window-close', Gtk.IconSize.MENU)
-
-        self.close_button = Gtk.Button()
-        self.close_button.set_image(image)
-        self.close_button.set_relief(Gtk.ReliefStyle.NONE)
-        self.close_button.connect('clicked', self.on_tab_close)
-
-        GLib.idle_add(self.spin_on)
-        self.header.pack_start(self.title_label,
-                          expand=True, fill=True, padding=0)
-        self.header.pack_end(self.spinner,
-                        expand=False, fill=False, padding=0)
-
-        self.header.show_all()
-
-        self.button = {}
-
-        self.popover = Gtk.Popover()
-
-        vbox = Gtk.VBox(orientation=Gtk.Orientation.VERTICAL)
-
-        self.button['copy_bibtex'] = Gtk.Button.new_with_label("Copy Bibtexs")
-        vbox.pack_start(self.button['copy_bibtex'], False, True, 0)
-
-        vbox.pack_start(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL), False, True, 10)
-
-        self.button['add_lib'] = Gtk.Button.new_with_label("Add to library")
-        vbox.pack_start(self.button['add_lib'], False, True, 0)
-
-        self.button['save_search'] = Gtk.Button.new_with_label("Save search")
-        vbox.pack_start(self.button['save_search'], False, True, 0)
-
-        vbox.pack_start(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL), False, True, 10)
-        self.button['close'] = Gtk.Button.new_with_label("Close")
-        vbox.pack_start(self.button['close'], False, True, 0)
-
-        vbox.show_all()
-
-        self.popover.add(vbox)
-        self.popover.set_position(Gtk.PositionType.BOTTOM)
-        
-        self.popover.set_relative_to(self.header)
-
-        self.add(self.header)
-
-        self.connect("button-press-event", self.button_press)
-
-        self.button['copy_bibtex'].connect("button-press-event", self.bp_bib)
-        self.button['add_lib'].connect("button-press-event", self.bp_add_lib)
-        self.button['save_search'].connect("button-press-event", self.bp_save_search)
-
-        self.button['close'].connect("button-press-event", self.bp_close)
-
-
-    def on_tab_close(self, button):
-        self.notebook.remove_page(self.notebook.page_num(self.page))
-
-    def button_press(self, widget, event):
-        if event.button == Gdk.BUTTON_PRIMARY:
-            self.notebook.set_current_page(self.notebook.page_num(self.page))
-            return True
-        elif event.button == Gdk.BUTTON_SECONDARY:
-            #make widget popup
-            self.popover.popup()
-            return True
-        return False
-
-    def spin_on(self):
-        self.spinner.start()
-
-    def spin_off(self):
-        self.spinner.stop()
-        self.header.remove(self.spinner)
-        self.header.pack_end(self.close_button,
-                        expand=False, fill=False, padding=0)
-        self.header.show_all()
-
-
-    def bp_bib(self, widget, event):
-        utils.clipboard(self.data.bibtex())
-        utils.show_status('Bibtex downloaded for {}'.format(self.data.bibcode))
-        return True
-
-    def bp_add_lib(self, widget, event):
-        libraries.Add2Lib(self.data.bibcodes())
-        return True
-
-    def bp_close(self, widget, event):
-        self.on_tab_close(widget)
-
-    def bp_save_search(self, widget, event):
-        saved_search.AddSavedSearch(self.page.astroref_name)
