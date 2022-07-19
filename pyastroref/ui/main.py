@@ -133,7 +133,7 @@ class AdsSearchEntry(Gtk.SearchEntry):
             query = query + " references({p.data.bibcode})"
 
         def target():
-            return articles.journal(search = query)
+            return search.search(query)
 
         journal.JournalPage(target,self.rp,query)
 

@@ -51,17 +51,15 @@ class JournalPage(Gtk.VBox):
 
     def download(self):
         def threader():
-            def f():
-                self.store.make(self.target)
-                self.header.spin_off()
-                self.header.set_data(self.store.journal)
-                self.store_view.set_data(self.store.journal)
+            self.store.make(self.target)
+            self.header.spin_off()
+            #GLib.idle_add(self.header.set_data(self.store.journal)
+            #GLib.idle_add(self.store_view.set_data(self.store.journal)
 
-            GLib.idle_add(f)
 
         thread = threading.Thread(target=threader)
         thread.daemon = True
-        thread.start()
+        GLib.idle_add(thread.start)
 
     def setup_sb(self):
         self.sb = Gtk.SearchEntry() 
@@ -193,55 +191,47 @@ class JournalStore(Gtk.ListStore):
     def make(self, target):
         hash = hashlib.sha256()
         hash.update(self.name.encode())
-        with vcr.use_cassette(os.path.join(utils.settings.cache,hash.hexdigest())):     
-            self.build(target)
-
-
-    def build(self, target):
-        self.journal = target()
-
-        if self.journal is None:
-            return
-
-        if len(self.journal) == 0:
-            return
-
-        # Creating the ListStore model
-        for paper in self.journal.values():
+        #with vcr.use_cassette(os.path.join(utils.settings.cache,hash.hexdigest())):     
+        for paper in target():
             print(paper)
-            pdficon = 'go-down'
+            paper = pyastroapi.articles.article(data=paper)
+            self.add(paper)
 
-            try:
-                if os.path.exists(os.path.join(utils.settings.pdffolder,paper.pdf.filename())):
-                    pdficon = 'x-office-document'
-            except (ValueError,pyastroapi.api.exceptions.NoRecordsFound): # No PDF available
-                pdficon = 'window-close'
 
-            authors = paper.authors()[1:]
-            if len(authors) > 3:
-                authors = authors[0:3]
-                authors.append('et al')
-            authors = '; '.join([i.strip() for i in authors])
+    def add(self, paper):
+        # Creating the ListStore model
+        pdficon = 'go-down'
+        try:
+            if os.path.exists(os.path.join(utils.settings.pdffolder,paper.pdf.filename())):
+                pdficon = 'x-office-document'
+        except (ValueError,pyastroapi.api.exceptions.NoRecordsFound,TypeError): # No PDF available
+            pdficon = 'window-close'
 
-            try:
-                refs = len(paper.references())
-            except pyastroapi.api.exceptions.MalformedRequest:
-                refs = 0
+        authors = paper.authors()[1:]
+        if len(authors) > 3:
+            authors = authors[0:3]
+            authors.append('et al')
+        authors = '; '.join([i.strip() for i in authors])
 
-            self.append([
-                paper.title[0],
-                paper.first_author(),
-                paper.year,
-                authors,
-                paper.pub,
-                str(refs),
-                str(paper.citation_count),
-                pdficon,
-                'edit-copy',
-                paper.bibcode
-            ])
+        try:
+            refs = len(paper.references())
+        except pyastroapi.api.exceptions.MalformedRequest:
+            refs = 0
 
-        utils.show_status('Showing {} articles'.format(len(self.journal)))
+        self.append([
+            paper.title[0],
+            paper.first_author(),
+            paper.year,
+            authors,
+            paper.pub,
+            str(refs),
+            str(paper.citation_count),
+            pdficon,
+            'edit-copy',
+            paper.bibcode
+        ])
+
+        # utils.show_status('Showing {} articles'.format(len(self.journal)))
         
 
     def refresh_results(self, widget):

@@ -17,6 +17,9 @@ from gi.repository import GLib, Gtk, GObject, Gdk, Gio
 
 import pyastroapi.api.token as token
 
+_search_fields = "abstract,author,bibcode,pubdate,title,pub,year,citation_count,reference"
+
+
 class Settings:
     def __init__(self):
         # Where to store PDF's

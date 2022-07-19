@@ -133,7 +133,7 @@ class Shelf:
 
 
     def load_defaults(self):
-        if not os.path.exists(utils.settings.journals):
+        if utils.settings.journals is None or not os.path.exists(utils.settings.journals):
             self.default_journals = self._init_default_journals
         else:
             self.default_journals = self.read_file(utils.settings.journals)
