@@ -51,10 +51,8 @@ class JournalPage(Gtk.VBox):
 
     def download(self):
         def threader():
-            self.store.make(self.target)
+            self.store.make(self.target, self.update_data)
             self.header.spin_off()
-            #GLib.idle_add(self.header.set_data(self.store.journal)
-            #GLib.idle_add(self.store_view.set_data(self.store.journal)
 
 
         thread = threading.Thread(target=threader)
@@ -66,6 +64,10 @@ class JournalPage(Gtk.VBox):
         self.sb.connect("changed", self.store.refresh_results)
         self.sb.grab_focus_without_selecting()
 
+    def update_data(self, paper):
+        self.header.set_data(paper)
+        self.store_view.set_data(paper) 
+
 
 class JournalMenu(Gtk.EventBox):
     def __init__(self, notebook, page, name):
@@ -75,7 +77,7 @@ class JournalMenu(Gtk.EventBox):
         self.page = page
         self.name = name
 
-        self.data = None
+        self.journal = pyastroapi.articles.journal()
 
         self.spinner = Gtk.Spinner()
         self.header = Gtk.HBox()
@@ -96,8 +98,8 @@ class JournalMenu(Gtk.EventBox):
         self.show_all()
 
 
-    def set_data(self, data):
-        self.data = data
+    def set_data(self,paper):
+        self.journal.add_articles([paper])
 
     def setup_close_button(self):
         self.close_button = Gtk.Button()
@@ -161,13 +163,13 @@ class JournalMenu(Gtk.EventBox):
 
 
     def bp_bib(self, widget, event):
-        if self.data is not None:
+        if len(self.journal):
             utils.clipboard(self.data.bibtex())
             utils.show_status("Bibtex downloaded")
         return True
 
     def bp_add_lib(self, widget, event):
-        if self.data is not None:
+        if len(self.journal):
             libraries.Add2Lib(self.data.bibcodes())
         return True
 
@@ -177,28 +179,26 @@ class JournalMenu(Gtk.EventBox):
     def bp_save_search(self, widget, event):
         saved_search.AddSavedSearch(self.page.astroref_name)
 
-
 _cols = ["Title", "First Author", "Year", "Authors", "Journal","References", "Citations", 
         "PDF", "Bibtex","bibcode"]
 
 class JournalStore(Gtk.ListStore):
     def __init__(self, name):
         Gtk.ListStore.__init__(self, *[str]*len(_cols))
-        self.journal = []
+        self.journal = pyastroapi.articles.journal()
         self.name = name
         self.clear()
 
-    def make(self, target):
+    def make(self, target, callback):
         hash = hashlib.sha256()
         hash.update(self.name.encode())
         #with vcr.use_cassette(os.path.join(utils.settings.cache,hash.hexdigest())):     
         for paper in target():
-            print(paper)
             paper = pyastroapi.articles.article(data=paper)
-            self.add(paper)
+            self.add(paper, callback)
 
 
-    def add(self, paper):
+    def add(self, paper, callback):
         # Creating the ListStore model
         pdficon = 'go-down'
         try:
@@ -207,7 +207,7 @@ class JournalStore(Gtk.ListStore):
         except (ValueError,pyastroapi.api.exceptions.NoRecordsFound,TypeError): # No PDF available
             pdficon = 'window-close'
 
-        authors = paper.authors()[1:]
+        authors = paper.authors[1:]
         if len(authors) > 3:
             authors = authors[0:3]
             authors.append('et al')
@@ -219,8 +219,8 @@ class JournalStore(Gtk.ListStore):
             refs = 0
 
         self.append([
-            paper.title[0],
-            paper.first_author(),
+            paper.title,
+            paper.first_author,
             paper.year,
             authors,
             paper.pub,
@@ -230,6 +230,9 @@ class JournalStore(Gtk.ListStore):
             'edit-copy',
             paper.bibcode
         ])
+
+        self.journal.add_articles([paper])
+        callback(paper)
 
         # utils.show_status('Showing {} articles'.format(len(self.journal)))
         
@@ -258,7 +261,7 @@ class JournalView(Gtk.TreeModelSort):
 
         self.store = store
         self.notebook = notebook
-        self.journal = []
+        self.journal = pyastroapi.articles.journal()
 
         self.set_sort_func(2, self.int_compare, 2)
         self.set_sort_func(5, self.int_compare, 5)
@@ -292,9 +295,8 @@ class JournalView(Gtk.TreeModelSort):
         self.treeview.connect('query-tooltip' , self.tooltip)
         self.treeview.connect('button-press-event' , self.button_press_event)
 
-    def set_data(self,journal):
-        print("Called",journal)
-        self.journal = journal
+    def set_data(self,paper):
+        self.journal.add_articles([paper])
 
 
     def int_compare(self, model, row1, row2, user_data):
@@ -318,6 +320,10 @@ class JournalView(Gtk.TreeModelSort):
             return False
         cp = self.convert_path_to_child_path(path)
         row = cp.get_indices()[0] 
+
+        print(row,len(self.journal))
+        if row >= len(self.journal):
+            return
         if len(self.journal):
             tooltip.set_text(self.journal[row].abstract)
             self.treeview.set_tooltip_row(tooltip, path)
@@ -336,6 +342,9 @@ class JournalView(Gtk.TreeModelSort):
         cp = self.convert_path_to_child_path(path)
         row = cp.get_indices()[0] 
 
+        print(row,len(self.journal))
+        if row >= len(self.journal):
+            return
         article = self.journal[row]
 
         title = col.get_title()
