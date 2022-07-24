@@ -38,7 +38,7 @@ class OptionsMenu(Gtk.Window):
         if t is not None:
             self.ads_entry.set_text(token.get_token())
         self.ads_entry.set_visibility(False)
-        self.ads_entry.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY,'dialog-password-symbolic')
+        self.ads_entry.set_icon_from_icon_name(Gtk.EntryIconPosition.SECONDARY,'view-reveal-symbolic.symbloic')
         self.ads_entry.connect('icon-press',self.flip_visible)
 
         self.ads_label = Gtk.LinkButton(uri='https://ui.adsabs.harvard.edu/user/settings/token',label='ADSABS ID')

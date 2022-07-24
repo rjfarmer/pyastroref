@@ -13,7 +13,7 @@ from gi.repository import EvinceDocument
 from gi.repository import EvinceView
 
 from . import utils
-from . import journal
+from . import results
 from . import libraries
 
 from ..pdf import pdfWindow
@@ -220,11 +220,11 @@ class PDFPopupWindow(Gtk.EventBox):
         return True
 
     def bp_cites(self, widget, event):
-        journal.ShowJournal(self.data.citations,self.notebook,'Cites:'+self.data.name)
+        results.ShowJournal(self.data.citations,self.notebook,'Cites:'+self.data.name)
         return True
 
     def bp_refs(self, widget, event):
-        journal.ShowJournal(self.data.references,self.notebook,'Refs:'+self.data.name)
+        results.ShowJournal(self.data.references,self.notebook,'Refs:'+self.data.name)
         return True
 
     def bp_add_lib(self, widget, event):

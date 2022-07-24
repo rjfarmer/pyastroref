@@ -17,7 +17,7 @@ from gi.repository import GLib, Gtk, GObject, Gdk, Gio
 
 import pyastroapi.api.token as token
 
-_search_fields = "abstract,author,bibcode,pubdate,title,pub,year,citation_count,reference"
+_search_fields = "abstract,author,bibcode,pubdate,title,pub,year,citation_count,reference,orcid_user"
 
 
 class Settings:

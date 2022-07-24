@@ -14,7 +14,7 @@ from gi.repository import GLib, Gtk, GObject, Gdk
 import pyastroapi.search as search
 import pyastroapi.articles as articles
 
-from . import options, journal, leftpanel, utils, pdf
+from . import options, leftpanel, results, utils, pdf
 
 
 
@@ -89,9 +89,8 @@ class MainWindow(Gtk.Window):
         self.rp_box.pack_start(self.right_panel,True,True,0)
 
         self.left_panel = leftpanel.LeftPanel(self.right_panel)
-        def func():
-            return []
-        journal.JournalPage(func,self.right_panel, 'Home')
+
+        results.ResultsLibrary('__pyastroapi__',self.right_panel, 'Home')
         
         self.right_panel.show_all()
 
@@ -111,7 +110,7 @@ class MainWindow(Gtk.Window):
 
 
 class AdsSearchEntry(Gtk.SearchEntry):
-    def __init__(self, rp):
+    def __init__(self, notebook):
         Gtk.SearchEntry.__init__(self)
         self.set_placeholder_text('Search ADS ...')
         self.connect("activate",self.on_click_search)
@@ -119,7 +118,7 @@ class AdsSearchEntry(Gtk.SearchEntry):
         self.set_can_default(True)
         self.set_hexpand(True)
 
-        self.rp = rp
+        self.notebook = notebook
         self.show_all()
 
     def on_click_search(self, button):
@@ -128,14 +127,9 @@ class AdsSearchEntry(Gtk.SearchEntry):
         if len(query) == 0:
             return
 
-        p = self.rp.get_nth_page(self.rp.get_current_page())
-        if isinstance(p, pdf.ShowPDF):
-            query = query + " references({p.data.bibcode})"
+        #page = self.notebook.get_nth_page(self.notebook.get_current_page())
 
-        def target():
-            return search.search(query)
-
-        journal.JournalPage(target,self.rp,query)
+        results.ResultsSearch(query, self.notebook, query)
 
 
 def _cleanup_caches():

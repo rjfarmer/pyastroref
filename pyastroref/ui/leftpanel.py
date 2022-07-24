@@ -8,7 +8,7 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk, GObject, Gdk
 
-from . import journal, utils, saved_search, libraries
+from . import results, utils, saved_search, libraries
 
 import pyastroapi.articles as articles
 import pyastroapi.search as search
@@ -119,7 +119,7 @@ class LeftPanel(object):
                     pass
 
             if target is not None:
-                journal.ShowJournal(target,self.notebook,name)  
+                results.ResultsPage(target,self.notebook,name)  
                 return
 
         elif event.button == Gdk.BUTTON_SECONDARY: # right click
