@@ -76,6 +76,37 @@ class ResultsSearch(ResultsPage):
             self.add_paper(self.journal[-1])
 
 
+class ResultsCites(ResultsPage):
+    def __init__(self, paper, notebook, name = None):
+        self.paper = paper
+        if name is None:
+            name  = f"Cites: {self.paper.name}"
+
+        super().__init__(notebook, name)
+
+        self.download()
+
+    def data(self):
+        for paper in pyastroapi.search.citations(self.paper.bibcode,fields=_fields):
+            self.journal.add_data([paper])
+            self.add_paper(self.journal[-1])
+
+class ResultsRefs(ResultsPage):
+    def __init__(self, paper, notebook, name = None):
+        self.paper = paper
+        if name is None:
+            name  = f"Refs: {self.paper.name}"
+
+        super().__init__(notebook, name)
+
+        self.download()
+
+    def data(self):
+        for paper in pyastroapi.search.references(self.paper.bibcode,fields=_fields):
+            self.journal.add_data([paper])
+            self.add_paper(self.journal[-1])
+
+
 class ResultsLibrary(ResultsPage):
     def __init__(self, library, notebook, name = None):
         self.lib = library
@@ -155,6 +186,8 @@ class ResultsList(Gtk.ListBox):
     def __init__(self):
         Gtk.ListBox.__init__(self)
 
+    def ListBoxUpdateHeaderFunc(self, row, before, *args):
+        self.set_header(Gtk.Label('My header'))
 
 class ResultsRow(Gtk.ListBoxRow):
     def __init__(self, paper, notebook):
@@ -226,11 +259,22 @@ class ResultsRow(Gtk.ListBoxRow):
 
     def setup_cites(self):
         self.cites = Gtk.Label()
-        self.cites.set_markup(f"<a href='citations'>{self.paper.citation_count}</a>")
+        count = self.paper.citation_count
+        if count:
+            self.cites.set_markup(f"<a href='citations'>{self.paper.citation_count}</a>")
+            self.cites.connect("activate-link", self.cites_on_link_clicked)
+        else:
+            self.cites.set_text('0')
+        
 
     def setup_refs(self):
         self.refs = Gtk.Label()
-        self.refs.set_markup(f"<a href='references'>{len(self.paper.references())}</a>")
+        count = len(self.paper.references())
+        if count:
+            self.refs.set_markup(f"<a href='references'>{len(self.paper.references())}</a>")
+            self.refs.connect("activate-link", self.refs_on_link_clicked)
+        else:
+            self.refs.set_text('0')
 
     def setup_authors(self):
         num = 4
@@ -270,6 +314,15 @@ class ResultsRow(Gtk.ListBoxRow):
 
         self.authors.show_all()
 
+    def refs_on_link_clicked(self, label, uri):
+        print(f'references:({self.paper.bibcode})')
+        ResultsRefs(self.paper, self.notebook)
+        return True
+
+    def cites_on_link_clicked(self, label, uri):
+        print(f'citations:({self.paper.bibcode})')
+        ResultsCites(self.paper, self.notebook)
+        return True
 
 
 # class JournalPage(Gtk.VBox):
