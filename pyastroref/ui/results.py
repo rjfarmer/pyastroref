@@ -71,7 +71,8 @@ class ResultsSearch(ResultsPage):
         self.download()
 
     def data(self):
-        for paper in pyastroapi.search.search(self.query,fields=_fields):
+        iter = pyastroapi.search.search(self.query,fields=_fields,limit=-1,dbg=True)
+        for paper in iter:
             self.journal.add_data([paper])
             self.add_paper(self.journal[-1])
 
@@ -102,6 +103,7 @@ class ResultsRefs(ResultsPage):
         self.download()
 
     def data(self):
+        print("resrefs")
         for paper in pyastroapi.search.references(self.paper.bibcode,fields=_fields):
             self.journal.add_data([paper])
             self.add_paper(self.journal[-1])
@@ -261,7 +263,7 @@ class ResultsRow(Gtk.ListBoxRow):
         self.cites = Gtk.Label()
         count = self.paper.citation_count
         if count:
-            self.cites.set_markup(f"<a href='citations'>{self.paper.citation_count}</a>")
+            self.cites.set_markup(f"<a href='citations'>{count}</a>")
             self.cites.connect("activate-link", self.cites_on_link_clicked)
         else:
             self.cites.set_text('0')
@@ -269,9 +271,9 @@ class ResultsRow(Gtk.ListBoxRow):
 
     def setup_refs(self):
         self.refs = Gtk.Label()
-        count = len(self.paper.references())
+        count = self.paper.reference_count()
         if count:
-            self.refs.set_markup(f"<a href='references'>{len(self.paper.references())}</a>")
+            self.refs.set_markup(f"<a href='references'>{count}</a>")
             self.refs.connect("activate-link", self.refs_on_link_clicked)
         else:
             self.refs.set_text('0')
