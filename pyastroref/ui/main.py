@@ -11,9 +11,6 @@ import gi
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk, GObject, Gdk
 
-import pyastroapi.search as search
-import pyastroapi.articles as articles
-
 from . import options, leftpanel, results, utils, pdf
 
 
@@ -43,10 +40,6 @@ class MainWindow(Gtk.Window):
             options.OptionsMenu()
 
         self.show_all()
-
-        _cleanup_caches()
-        GLib.timeout_add_seconds(24*60*60, _cleanup_caches)
-
 
     def setup_headerbar(self):
         self.options_menu()
@@ -130,16 +123,3 @@ class AdsSearchEntry(Gtk.SearchEntry):
         #page = self.notebook.get_nth_page(self.notebook.get_current_page())
 
         results.ResultsSearch(query, self.notebook, query)
-
-
-def _cleanup_caches():
-    folder = utils.settings.cache
-
-    yesterday = datetime.date.today() - datetime.timedelta(days=1)
-    for file in glob.glob(os.path.join(folder,'*')):
-        if 'bibtex' in file:
-            continue
-        path = Path(file)
-        last_modified = datetime.date.fromtimestamp(path.stat().st_mtime)
-        if last_modified < yesterday:
-            os.remove(file)

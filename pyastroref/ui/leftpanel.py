@@ -10,9 +10,9 @@ from gi.repository import GLib, Gtk, GObject, Gdk
 
 from . import results, utils, saved_search, libraries
 
-import pyastroapi.articles as articles
-import pyastroapi.search as search
-import pyastroapi
+import pyastroapi.articles
+import pyastroapi.search 
+import pyastroapi.libraries
 
 from . import shelves
 
@@ -24,7 +24,7 @@ class LeftPanel(object):
         self.store = Gtk.TreeStore(str)
         self.notebook = notebook
 
-        self.libs = pyastroapi.libraries.libraries()
+        self.libs = pyastroapi.libraries()
         self.adsJournals = shelves.Shelf()
 
         self.make_rows()

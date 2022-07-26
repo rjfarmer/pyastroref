@@ -5,6 +5,9 @@ import sys
 import threading
 import vcr
 import hashlib
+import datetime
+from pathlib import Path
+import pickle
 
 import gi
 gi.require_version("Gtk", "3.0")
@@ -12,8 +15,7 @@ from gi.repository import GLib, Gtk, GObject, Gdk
 
 from . import utils, libraries, pdf
 
-import pyastroapi.search 
-import pyastroapi.articles
+import pyastroapi
 
 _fields = "abstract,author,bibcode,pubdate,title,pub,year,citation_count,reference,orcid_user,bibstem"
 
@@ -23,7 +25,7 @@ class ResultsPage(Gtk.VBox):
         self.notebook = notebook
         self.name = name
 
-        self.journal = pyastroapi.articles.journal()
+        self.journal = pyastroapi.journal()
 
         self.set_vexpand(True)
         self.set_hexpand(True)
@@ -59,6 +61,16 @@ class ResultsPage(Gtk.VBox):
     def add_paper(self, paper):
         self.list.add(ResultsRow(paper, self.notebook))
 
+    def cache_file(self):
+        file = Path(os.path.join(utils.settings.cache,self.hash()))
+
+        if os.path.exists(file):
+            yesterday = datetime.date.today() - datetime.timedelta(days=1)
+            last_modified = datetime.date.fromtimestamp(file.stat().st_mtime)
+            if last_modified < yesterday:
+                os.remove(file)
+        return file
+
 
 class ResultsSearch(ResultsPage):
     def __init__(self, query, notebook, name = None):
@@ -71,10 +83,34 @@ class ResultsSearch(ResultsPage):
         self.download()
 
     def data(self):
-        iter = pyastroapi.search.search(self.query,fields=_fields,limit=-1,dbg=True)
+        if os.path.exists(self.cache_file()):
+            print("Local",self.query)
+            self.data_local()
+        else:
+            print("Remote",self.query)
+            self.data_remote()
+
+    def data_remote(self):
+        iter = pyastroapi.search(self.query,fields=_fields,limit=-1,dbg=True)
         for paper in iter:
-            self.journal.add_data([paper])
-            self.add_paper(self.journal[-1])
+            art = pyastroapi.article(data=paper)
+            self.journal.add_articles([art])
+            self.add_paper(art)
+
+        with open(self.cache_file(),'wb') as f:
+            pickle.dump(self.journal,f)
+
+
+    def data_local(self):
+        with open(self.cache_file(),'rb') as f:
+            self.journal = pickle.load(f)
+
+        for paper in self.journal.values():
+            self.add_paper(paper)
+
+    def hash(self):
+        var = self.query + _fields
+        return hashlib.md5(var.encode('utf-8')).hexdigest()
 
 
 class ResultsCites(ResultsPage):
@@ -88,7 +124,7 @@ class ResultsCites(ResultsPage):
         self.download()
 
     def data(self):
-        for paper in pyastroapi.search.citations(self.paper.bibcode,fields=_fields):
+        for paper in pyastroapi.citations(self.paper.bibcode,fields=_fields):
             self.journal.add_data([paper])
             self.add_paper(self.journal[-1])
 
@@ -103,8 +139,7 @@ class ResultsRefs(ResultsPage):
         self.download()
 
     def data(self):
-        print("resrefs")
-        for paper in pyastroapi.search.references(self.paper.bibcode,fields=_fields):
+        for paper in pyastroapi.references(self.paper.bibcode,fields=_fields):
             self.journal.add_data([paper])
             self.add_paper(self.journal[-1])
 
