@@ -233,6 +233,7 @@ class ResultsRow(Gtk.ListBoxRow):
         self.box = Gtk.HBox()
         self.notebook = notebook
         self.paper = paper
+        self.filename = None
         self.add(self.box)
 
         self.setup_title()
@@ -242,6 +243,8 @@ class ResultsRow(Gtk.ListBoxRow):
         self.setup_cites()
         self.setup_refs()
         self.setup_year()
+        self.setup_bibtex()
+        self.setup_pdf()
 
         self.box.pack_start(self.title, True, True, 10)
         self.box.pack_start(self.first_author, False, False, 10)
@@ -250,6 +253,8 @@ class ResultsRow(Gtk.ListBoxRow):
         self.box.pack_start(self.year, False, True, 10)
         self.box.pack_start(self.refs, False, True, 10)
         self.box.pack_start(self.cites, False, True, 10)
+        self.box.pack_start(self.bibtex, False, True, 10)
+        self.box.pack_start(self.pdf, False, True, 10)
 
         self.box.show_all()
         self.show_all()
@@ -273,6 +278,35 @@ class ResultsRow(Gtk.ListBoxRow):
 
     def setup_year(self):
         self.year = Gtk.Label(self.paper.year)
+
+    def setup_bibtex(self):
+        self.bibtex = Gtk.Button()
+        image = Gtk.Image()
+        if os.path.exists(os.path.join(utils.settings.bibtex_cache,self.paper.bibcode)):
+            image.set_from_icon_name('x-office-document', Gtk.IconSize.MENU)
+        else:
+            image.set_from_icon_name('go-down', Gtk.IconSize.MENU)
+        self.bibtex.set_image(image)
+        self.bibtex.set_relief(Gtk.ReliefStyle.NONE)
+
+    def setup_pdf(self):
+        self.pdf = Gtk.Button()
+        image = Gtk.Image()
+
+        try:
+            self.filename = os.path.join(utils.settings.pdffolder,self.paper.pdf.filename())
+        except ValueError:
+            self.filename = None # No pdf available
+
+        if self.filename is None:
+            image.set_from_icon_name('window-close', Gtk.IconSize.MENU)
+        elif os.path.exists(self.filename):
+            image.set_from_icon_name('x-office-document', Gtk.IconSize.MENU)
+        else:
+            image.set_from_icon_name('go-down', Gtk.IconSize.MENU)
+        self.pdf.set_image(image)
+        self.pdf.set_relief(Gtk.ReliefStyle.NONE)
+
 
     def author_on_link_clicked(self, label, uri):
         try:
@@ -345,6 +379,7 @@ class ResultsRow(Gtk.ListBoxRow):
             self.popover.set_position(Gtk.PositionType.BOTTOM)
 
             etal = Gtk.MenuButton(label="et al.", popover=self.popover)
+            etal.set_relief(Gtk.ReliefStyle.NONE)
 
             self.authors.pack_start(etal,False,False,0)
 
