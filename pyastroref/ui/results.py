@@ -52,6 +52,7 @@ class ResultsPage(Gtk.VBox):
     def download(self):
         def threader():
             self.data()
+            self.list.set_header_func()
             self.header.spin_off()
 
         #thread = threading.Thread(target=threader)
@@ -61,15 +62,41 @@ class ResultsPage(Gtk.VBox):
     def add_paper(self, paper):
         self.list.add(ResultsRow(paper, self.notebook))
 
-    def cache_file(self):
+    def cache_file(self, time):
         file = Path(os.path.join(utils.settings.cache,self.hash()))
 
         if os.path.exists(file):
-            yesterday = datetime.date.today() - datetime.timedelta(days=1)
+            yesterday = datetime.date.today() - datetime.timedelta(days=time)
             last_modified = datetime.date.fromtimestamp(file.stat().st_mtime)
             if last_modified < yesterday:
                 os.remove(file)
         return file
+
+    def data(self):
+        if os.path.exists(self.cache_filename):
+            print("Local")
+            self.data_local()
+        else:
+            print("Remote")
+            self.data_remote()
+
+    def data_remote(self):
+        iter = self.get_iter()
+        for paper in iter:
+            art = pyastroapi.article(data=paper)
+            self.journal.add_articles([art])
+            self.add_paper(art)
+
+        with open(self.cache_filename,'wb') as f:
+            pickle.dump(self.journal,f)
+
+
+    def data_local(self):
+        with open(self.cache_filename,'rb') as f:
+            self.journal = pickle.load(f)
+
+        for paper in self.journal.values():
+            self.add_paper(paper)
 
 
 class ResultsSearch(ResultsPage):
@@ -80,33 +107,12 @@ class ResultsSearch(ResultsPage):
 
         super().__init__(notebook, name)
 
+        self.cache_time = 1 #days
+        self.cache_filename = self.cache_file(time=self.cache_time)
         self.download()
 
-    def data(self):
-        if os.path.exists(self.cache_file()):
-            print("Local",self.query)
-            self.data_local()
-        else:
-            print("Remote",self.query)
-            self.data_remote()
-
-    def data_remote(self):
-        iter = pyastroapi.search(self.query,fields=_fields,limit=-1,dbg=True)
-        for paper in iter:
-            art = pyastroapi.article(data=paper)
-            self.journal.add_articles([art])
-            self.add_paper(art)
-
-        with open(self.cache_file(),'wb') as f:
-            pickle.dump(self.journal,f)
-
-
-    def data_local(self):
-        with open(self.cache_file(),'rb') as f:
-            self.journal = pickle.load(f)
-
-        for paper in self.journal.values():
-            self.add_paper(paper)
+    def get_iter(self):
+        return pyastroapi.search(self.query,fields=_fields,limit=-1,dbg=True)
 
     def hash(self):
         var = self.query + _fields
@@ -121,12 +127,16 @@ class ResultsCites(ResultsPage):
 
         super().__init__(notebook, name)
 
+        self.cache_time = 1 #days
+        self.cache_filename = self.cache_file(time=self.cache_time)
         self.download()
 
-    def data(self):
-        for paper in pyastroapi.citations(self.paper.bibcode,fields=_fields):
-            self.journal.add_data([paper])
-            self.add_paper(self.journal[-1])
+    def get_iter(self):
+        return pyastroapi.citations(self.paper.bibcode,fields=_fields)
+
+    def hash(self):
+        var = 'cites ' + self.paper.bibcode + _fields
+        return hashlib.md5(var.encode('utf-8')).hexdigest()
 
 class ResultsRefs(ResultsPage):
     def __init__(self, paper, notebook, name = None):
@@ -136,12 +146,16 @@ class ResultsRefs(ResultsPage):
 
         super().__init__(notebook, name)
 
+        self.cache_time = 14 #days
+        self.cache_filename = self.cache_file(time=self.cache_time)
         self.download()
 
-    def data(self):
-        for paper in pyastroapi.references(self.paper.bibcode,fields=_fields):
-            self.journal.add_data([paper])
-            self.add_paper(self.journal[-1])
+    def get_iter(self):
+        return pyastroapi.references(self.paper.bibcode,fields=_fields)
+
+    def hash(self):
+        var = 'refs' + self.paper.bibcode + _fields
+        return hashlib.md5(var.encode('utf-8')).hexdigest()
 
 
 class ResultsLibrary(ResultsPage):
@@ -152,9 +166,16 @@ class ResultsLibrary(ResultsPage):
             name  = self.lib
 
         super().__init__(notebook, name)
+        self.cache_time = 0.1 #days
+        self.cache_filename = self.cache_file(time=self.cache_time)
+        self.download()
 
-    def data(self):
-        pass
+    def get_iter(self):
+        return []
+
+    def hash(self):
+        var = 'library ' + self.lib + _fields
+        return hashlib.md5(var.encode('utf-8')).hexdigest()
 
 
 class ResultsHeader(Gtk.EventBox):
@@ -222,12 +243,33 @@ class ResultsHeader(Gtk.EventBox):
 class ResultsList(Gtk.ListBox):
     def __init__(self):
         Gtk.ListBox.__init__(self)
+        self.set_selection_mode(Gtk.SelectionMode.NONE)
+        self.header = Gtk.HBox()
+        self.show_all()
 
-    def ListBoxUpdateHeaderFunc(self, row, before, *args):
-        self.set_header(Gtk.Label('My header'))
+    def align_my_header(self,*args):
+        self.set_header_func()
+
+    def set_header_func(self, *args):
+        row = self.get_row_at_index(0)
+        if row is None:
+            return
+
+        self.header = Gtk.HBox()
+        labels = ["Title", "First author", "Authors", "Journal",
+                "Year", "Refs", "Cites","Bibtex","PDF" ]
+        
+        for l,pack in zip(labels,row.get_packing()):
+            label = Gtk.Label(l)
+            self.header.pack_start(label,pack.expand,pack.fill,pack.padding)
+
+        row.connect('realize', row.set_header_size, self.header)
+
+        row.set_header(self.header)
+        self.header.show_all()
 
 class ResultsRow(Gtk.ListBoxRow):
-    def __init__(self, paper, notebook):
+    def __init__(self,paper, notebook):
         Gtk.ListBoxRow.__init__(self)
         
         self.box = Gtk.HBox()
@@ -258,6 +300,23 @@ class ResultsRow(Gtk.ListBoxRow):
 
         self.box.show_all()
         self.show_all()
+
+    def get_width(self):
+        width = []
+        for child in self.box.get_children():
+            width.append(child.get_allocated_width())
+        return width
+
+    def get_packing(self):
+        packing = []
+        for child in self.box.get_children():
+            packing.append(self.box.query_child_packing(child))
+        return packing
+
+    def set_header_size(self, row, header):
+        width = row.get_width()
+        for child,w in zip(header.get_children(),width):
+            child.set_size_request(w,-1)
 
     def setup_title(self):
         self.title = Gtk.Label(self.paper.title.strip())
