@@ -87,7 +87,7 @@ class MainWindow(Gtk.Window):
         
         self.right_panel.show_all()
 
-        self.panels.pack1(self.left_panel.treeview,False,False)
+        self.panels.pack1(self.left_panel,False,False)
         self.panels.pack2(self.rp_box,True,True)
 
         self.rp_box.pack_start(utils._statusbar,False,False,0)

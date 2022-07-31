@@ -52,7 +52,7 @@ class ResultsPage(Gtk.VBox):
     def download(self):
         def threader():
             self.data()
-            self.list.set_header_func()
+            self.list.align_my_header()
             self.header.spin_off()
 
         #thread = threading.Thread(target=threader)
@@ -82,6 +82,10 @@ class ResultsPage(Gtk.VBox):
 
     def data_remote(self):
         iter = self.get_iter()
+
+        if iter is None:
+            return
+
         for paper in iter:
             art = pyastroapi.article(data=paper)
             self.journal.add_articles([art])
@@ -95,8 +99,11 @@ class ResultsPage(Gtk.VBox):
         with open(self.cache_filename,'rb') as f:
             self.journal = pickle.load(f)
 
-        for paper in self.journal.values():
-            self.add_paper(paper)
+        if len(self.journal) == 0:
+            self.data_remote()
+        else:
+            for paper in self.journal.values():
+                self.add_paper(paper)
 
 
 class ResultsSearch(ResultsPage):
@@ -116,6 +123,44 @@ class ResultsSearch(ResultsPage):
 
     def hash(self):
         var = self.query + _fields
+        return hashlib.md5(var.encode('utf-8')).hexdigest()
+
+
+class ResultsOrcid(ResultsPage):
+    def __init__(self, query, notebook, name = None):
+        self.query = query
+        if name is None:
+            name  = self.query
+
+        super().__init__(notebook, name)
+
+        self.cache_time = 1 #days
+        self.cache_filename = self.cache_file(time=self.cache_time)
+        self.download()
+
+    def get_iter(self):
+        return pyastroapi.orcid(self.query,fields=_fields,limit=-1,dbg=True)
+
+    def hash(self):
+        var = self.query + _fields
+        return hashlib.md5(var.encode('utf-8')).hexdigest()
+
+
+class ResultsArxiv(ResultsPage):
+    def __init__(self, notebook):
+
+        self.name = 'Arxiv'
+        super().__init__(notebook, self.name)
+
+        self.cache_time = 1 #days
+        self.cache_filename = self.cache_file(time=self.cache_time)
+        self.download()
+
+    def get_iter(self):
+        return pyastroapi.astro_ph(fields=_fields,limit=-1,dbg=True)
+
+    def hash(self):
+        var = 'arxiv'+ str(datetime.datetime.today()) + _fields
         return hashlib.md5(var.encode('utf-8')).hexdigest()
 
 
@@ -171,7 +216,10 @@ class ResultsLibrary(ResultsPage):
         self.download()
 
     def get_iter(self):
-        return []
+        x = libraries.get(self.lib)
+
+        if x is not None:
+            return x.values
 
     def hash(self):
         var = 'library ' + self.lib + _fields
@@ -248,25 +296,25 @@ class ResultsList(Gtk.ListBox):
         self.show_all()
 
     def align_my_header(self,*args):
-        self.set_header_func()
+        def set_header_func(self, row, before ,*args):
+            print(args)
+            row = self.get_row_at_index(0)
+            if row is None:
+                return
 
-    def set_header_func(self, *args):
-        row = self.get_row_at_index(0)
-        if row is None:
-            return
+            self.header = Gtk.HBox()
+            labels = ["Title", "First author", "Authors", "Journal",
+                    "Year", "Refs", "Cites","Bibtex","PDF" ]
+            
+            for l,pack in zip(labels,row.get_packing()):
+                label = Gtk.Label(l)
+                self.header.pack_start(label,pack.expand,pack.fill,pack.padding)
 
-        self.header = Gtk.HBox()
-        labels = ["Title", "First author", "Authors", "Journal",
-                "Year", "Refs", "Cites","Bibtex","PDF" ]
-        
-        for l,pack in zip(labels,row.get_packing()):
-            label = Gtk.Label(l)
-            self.header.pack_start(label,pack.expand,pack.fill,pack.padding)
+            row.connect('realize', row.set_header_size, self.header)
 
-        row.connect('realize', row.set_header_size, self.header)
+            self.header.show_all()
 
-        row.set_header(self.header)
-        self.header.show_all()
+        self.set_header_func = set_header_func
 
 class ResultsRow(Gtk.ListBoxRow):
     def __init__(self,paper, notebook):
@@ -314,9 +362,17 @@ class ResultsRow(Gtk.ListBoxRow):
         return packing
 
     def set_header_size(self, row, header):
-        width = row.get_width()
+        if self.get_index() != 0:
+            return
+
+        width = self.get_width()
         for child,w in zip(header.get_children(),width):
+            print(child,w)
             child.set_size_request(w,-1)
+
+        self.set_header(header)
+        header.show_all()
+        self.show_all()
 
     def setup_title(self):
         self.title = Gtk.Label(self.paper.title.strip())

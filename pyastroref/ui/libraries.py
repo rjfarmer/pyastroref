@@ -12,10 +12,25 @@ import pyastroapi.libraries as lib
 
 _alllibs = None
 
-def _make_libs():
+def _init_libs():
+    global _alllibs
     if _alllibs is not None:
         _alllibs = lib.libraries()
         GLib.idle_add(_alllibs.update)
+
+
+def get(name):
+    _init_libs()
+
+    if _alllibs is not None:
+        return _alllibs[name]
+
+def list_all():
+    _init_libs()
+
+    if _alllibs is not None:
+        return _alllibs.keys()
+
 
 
 class Add2Lib(Gtk.Window):
@@ -33,7 +48,7 @@ class Add2Lib(Gtk.Window):
 
         self.combo = Gtk.ComboBoxText()
 
-        _make_libs()
+        _init_libs()
 
         for i in _alllibs.names():
             self.combo.append_text(i)
@@ -78,7 +93,7 @@ class EditLibrary(Gtk.Window):
         self._public=False
         self._callback = callback
 
-        _make_libs()
+        _init_libs()
 
         if self._name is not None:
             if self._name in _alllibs:
@@ -159,7 +174,7 @@ class EditLibrary(Gtk.Window):
         name = self.name.get_text()
         description = self.description.get_text()
 
-        _make_libs()
+        _init_libs()
 
         if self._add:
             def target():
