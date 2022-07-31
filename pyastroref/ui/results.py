@@ -160,7 +160,7 @@ class ResultsArxiv(ResultsPage):
         return pyastroapi.astro_ph(fields=_fields,limit=-1,dbg=True)
 
     def hash(self):
-        var = 'arxiv'+ str(datetime.datetime.today()) + _fields
+        var = 'arxiv'+ str(datetime.datetime.today().strftime('%Y-%m-%d')) + _fields
         return hashlib.md5(var.encode('utf-8')).hexdigest()
 
 
