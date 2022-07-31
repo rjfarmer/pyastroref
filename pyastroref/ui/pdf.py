@@ -35,7 +35,7 @@ class ShowPDF(Gtk.VBox):
 
         self.header = PDFPopupWindow(self.notebook, self, self.data)
 
-        self._filename = self.data.filename(True)
+        self._filename = os.path.join(utils.settings.pdffolder,self.data.pdf.filename())
 
         self.add_page()
 
@@ -62,12 +62,12 @@ class ShowPDF(Gtk.VBox):
         return
 
     def add_page(self):
-        for p in range(self.notebook.get_n_pages()):
-            page = self.notebook.get_nth_page(p)
-            if self.data.bibcode == page.astroref_name:
-                self.notebook.set_current_page(p)
-                self.notebook.show_all()
-                return
+        # for p in range(self.notebook.get_n_pages()):
+        #     page = self.notebook.get_nth_page(p)
+        #     if self.data.bibcode == page.astroref_name:
+        #         self.notebook.set_current_page(p)
+        #         self.notebook.show_all()
+        #         return
 
         self.page_num = self.notebook.append_page(self, self.header)
         self.notebook.set_tab_reorderable(self, True)
@@ -117,13 +117,13 @@ class PDFPopupWindow(Gtk.EventBox):
         self.button['open_ads'] = Gtk.LinkButton(uri=self.data.url.ads,label='Open ADS')
         vbox.pack_start(self.button['open_ads'], False, True, 0)
 
-        if len(self.data.arxiv_url):
-            self.button['open_arxiv'] = Gtk.LinkButton(uri=self.data.url.arxiv,label='Open Arxiv')
-            vbox.pack_start(self.button['open_arxiv'], False, True, 0)
+        # if len(self.data.arxiv_url):
+        #     self.button['open_arxiv'] = Gtk.LinkButton(uri=self.data.url.arxiv,label='Open Arxiv')
+        #     vbox.pack_start(self.button['open_arxiv'], False, True, 0)
 
-        if self.data.url.journal is not None:
-            self.button['open_journal'] = Gtk.LinkButton(uri=self.data.url.journal,label=f"Open {self.data.pub}")
-            vbox.pack_start(self.button['open_journal'], False, True, 0)
+        # if self.data.url.journal is not None:
+        #     self.button['open_journal'] = Gtk.LinkButton(uri=self.data.url.journal,label=f"Open {self.data.pub}")
+        #     vbox.pack_start(self.button['open_journal'], False, True, 0)
 
 
         vbox.pack_start(Gtk.Separator(orientation=Gtk.Orientation.VERTICAL), False, True, 10)
@@ -174,17 +174,17 @@ class PDFPopupWindow(Gtk.EventBox):
 
         self.connect("button-press-event", self.button_press)
 
-        self.button['copy_bibtex'].connect("button-press-event", self.bp_bib)
-        self.button['cites'].connect("button-press-event", self.bp_cites)
-        self.button['refs'].connect("button-press-event", self.bp_refs)
-        self.button['add_lib'].connect("button-press-event", self.bp_add_lib)
+        # self.button['copy_bibtex'].connect("button-press-event", self.bp_bib)
+        # self.button['cites'].connect("button-press-event", self.bp_cites)
+        # self.button['refs'].connect("button-press-event", self.bp_refs)
+        # self.button['add_lib'].connect("button-press-event", self.bp_add_lib)
 
-        self.button['save'].connect("button-press-event", self.bp_save)
-        self.button['save_as'].connect("button-press-event", self.bp_save_as)
-        self.button['print'].connect("button-press-event", self.bp_print)
+        # self.button['save'].connect("button-press-event", self.bp_save)
+        # self.button['save_as'].connect("button-press-event", self.bp_save_as)
+        # self.button['print'].connect("button-press-event", self.bp_print)
 
-        self.button['close'].connect("button-press-event", self.bp_close)
-        self.button['del'].connect("button-press-event", self.bp_del)
+        # self.button['close'].connect("button-press-event", self.bp_close)
+        # self.button['del'].connect("button-press-event", self.bp_del)
 
     def tooltip(self, widget, x, y, keyboard, tooltip):
         tooltip.set_text(self.data.title)
