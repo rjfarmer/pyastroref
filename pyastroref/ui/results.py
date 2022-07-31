@@ -422,6 +422,12 @@ class ResultsRow(Gtk.ListBoxRow):
         self.pdf.set_image(image)
         self.pdf.set_relief(Gtk.ReliefStyle.NONE)
 
+        self.pdf.connect('clicked',self.pdf_show)
+
+    def pdf_show(self, *args):
+        pdf.ShowPDF(self.paper,self.notebook)
+        self.setup_pdf()
+
 
     def author_on_link_clicked(self, label, uri):
         try:
